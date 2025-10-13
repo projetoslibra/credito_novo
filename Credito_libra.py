@@ -12,7 +12,7 @@ ABA_PENDENCIAS = 'DIM_PENDENCIAS'
 
 # ====== PERMISSÕES POR USUÁRIO ======
 USERS = {
-    "The_Falcon": {"senha": "Falcao@3", "tipo": "comercial", "agente": "Gabriel"},
+    "Breno": {"senha": "Breno13", "tipo": "comercial", "agente": "Breno"},
     "analista": {"senha": "1234", "tipo": "analista", "agente": None},
     # Adicione mais usuários aqui...
 }
