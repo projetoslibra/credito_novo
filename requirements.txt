@@ -1,6 +1,8 @@
-streamlit==1.32.2
-pandas==2.2.2
-streamlit-aggrid==0.3.4.post3
-streamlit-cookies-manager>=0.2.0
-XlsxWriter
+streamlit
+pandas
+numpy
+plotly
 openpyxl
+gspread
+google-auth
+oauth2client
