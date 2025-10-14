@@ -20,7 +20,7 @@ USERS = {
 # ====== AUTENTICAÇÃO COM GOOGLE SHEETS ======
 def conectar_planilha():
     import json
-    creds_dict = json.loads(st.secrets["gcp_service_account"])
+    creds_dict = st.secrets["gcp_service_account"]
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     client = gspread.authorize(creds)
     sheet = client.open_by_key(SPREADSHEET_ID)
