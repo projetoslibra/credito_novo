@@ -1,68 +1,82 @@
 import streamlit as st
 import pandas as pd
 import psycopg2
-from psycopg2 import sql
-from datetime import datetime
+from psycopg2.extras import RealDictCursor
+from datetime import date, datetime
 
-# ========== CORES ==========
-SPACE_CADET = "#042F3C"
+# =======================
+# PALETA LIBRA
+# =======================
+SPACE_CADET  = "#042F3C"
 HARVEST_GOLD = "#C66300"
-HONEYDEW = "#FFF4E3"
-SLATE_GRAY = "#717c89"
+HONEYDEW     = "#FFF4E3"
+SLATE_GRAY    = "#717c89"
 
-st.set_page_config(page_title="Libra Capital | Crédito", page_icon="📋", layout="wide")
-
-# ========== ESTILO GLOBAL ==========
-st.markdown(f"""
+st.set_page_config(page_title="Análise de Crédito", page_icon="📋", layout="wide")
+st.markdown(
+    f"""
     <style>
-        .stApp {{
-            background-color: {SPACE_CADET};
-            color: {HONEYDEW};
-        }}
-        h1, h2, h3, h4, h5, h6 {{
-            color: {HONEYDEW};
-            font-weight: 700;
-        }}
-        .stButton>button {{
-            background-color: {HARVEST_GOLD};
-            color: white;
-            font-weight: 600;
-            border: none;
-            border-radius: 8px;
-            padding: 0.6rem 1.2rem;
-        }}
-        .stButton>button:hover {{
-            background-color: #e67700;
-        }}
-        /* Abas personalizadas */
-        .nav-container {{
-            display: flex;
-            justify-content: center;
-            margin-bottom: 1.5rem;
-        }}
-        .nav-button {{
-            background-color: #0e1117;
-            border: 1px solid #31333F;
-            color: white;
-            padding: 0.6rem 1.2rem;
-            border-radius: 0.5rem;
-            margin: 0 0.3rem;
-            cursor: pointer;
-            transition: 0.3s;
-            font-weight: 600;
-        }}
-        .nav-button:hover {{
-            background-color: #1e222f;
-        }}
-        .active {{
-            background-color: {HARVEST_GOLD};
-            color: white;
-            border: 1px solid {HARVEST_GOLD};
-        }}
+      .stApp {{
+        background: {SPACE_CADET};
+      }}
+      .stTabs [data-baseweb="tab-list"] button[role="tab"] {{
+        background: {HARVEST_GOLD};
+        color: {HONEYDEW};
+        border-radius: 10px;
+        margin-right: 8px;
+        font-weight: 700;
+      }}
+      .stTabs [aria-selected="true"] {{
+        border: 2px solid #ffffff22;
+      }}
+      .metric-pill {{
+        background: #ffffff10;
+        border: 1px solid #ffffff22;
+        border-radius: 12px;
+        padding: 12px 14px;
+      }}
+      .good-pill {{
+        background: #1f5135; color:#dff6e3; border:1px solid #2c7a4b;
+      }}
+      .warn-pill {{
+        background: #5a3b00; color:#ffe8c7; border:1px solid #C66300aa;
+      }}
+      .card {{
+        background: #00000014; border:1px solid #ffffff22; border-radius:14px; padding:16px;
+      }}
+      .label {{
+        color:{SLATE_GRAY}; font-size:0.85rem;
+      }}
+      .btn-save button {{
+        background:{HARVEST_GOLD} !important; color:{HONEYDEW} !important; font-weight:700 !important;
+      }}
+      .big-title {{
+        color:{HONEYDEW}; font-size:2.0rem; font-weight:900;
+        border-bottom: 2px solid {HARVEST_GOLD}99; padding-bottom:.12em;
+      }}
+      .sub-title {{
+        color:{HONEYDEW}; font-size:1.25rem; font-weight:800; margin-top:.75rem;
+      }}
+      .text {{
+        color:{HONEYDEW};
+      }}
+      .muted {{
+        color:{SLATE_GRAY};
+      }}
+      .dark-input input, .dark-input textarea {{
+        background:#20262b !important; color:{HONEYDEW} !important; border:1px solid #ffffff22 !important;
+      }}
+      .dark-select div[data-baseweb="select"] > div {{
+        background:#20262b !important; color:{HONEYDEW} !important; border:1px solid #ffffff22 !important;
+      }}
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
-# ========== HEADER ==========
+# =======================
+# HEADER (modelo que você mandou)
+# =======================
 with st.container():
     cols = st.columns([0.2, 0.8])
     with cols[0]:
@@ -70,211 +84,335 @@ with st.container():
     with cols[1]:
         st.markdown(
             f"""
-            <span style='
-                color: {HONEYDEW};
-                font-size: 2.4rem;
-                font-weight:900;
-                border-bottom: 2px solid {HARVEST_GOLD}99;
-                padding-bottom: 0.12em;'>
+            <span class='big-title'>
                 LIBRA CAPITAL
-                <span style='font-weight:400;color:{HARVEST_GOLD};'>| Crédito Corporativo</span>
+                <span style='font-weight:400;color:{HARVEST_GOLD};'>| Análise de Crédito</span>
             </span>
             """,
             unsafe_allow_html=True
         )
 
-# ========== CONEXÃO DB ==========
+st.write("")  # espaçamento
+
+
+# =======================
+# CONEXÃO COM POSTGRES
+# =======================
 DB_CONFIG = {
     "host": st.secrets["db_host"],
-    "port": st.secrets["db_port"],
+    "port": int(st.secrets["db_port"]),
     "dbname": st.secrets["db_name"],
     "user": st.secrets["db_user"],
-    "password": st.secrets["db_password"]
+    "password": st.secrets["db_password"],
 }
 
-def conectar():
+@st.cache_resource(show_spinner=False)
+def get_conn():
     return psycopg2.connect(**DB_CONFIG)
 
-def carregar_dados(query, params=None):
-    conn = conectar()
-    df = pd.read_sql(query, conn, params=params)
-    conn.close()
-    return df
-
-def salvar_dados(query, params):
-    conn = conectar()
-    cur = conn.cursor()
-    cur.execute(query, params)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-def inserir_empresa(empresa, agente):
-    conn = conectar()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO analise_credito (empresa, agente, entrada)
-        VALUES (%s, %s, NOW())
-        ON CONFLICT (empresa) DO NOTHING;
-    """, (empresa, agente))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-# ========== LOGIN ==========
-USERS = {
-    "Breno": {"senha": "Breno13", "tipo": "comercial", "agente": "Breno"},
-    "analista": {"senha": "1234", "tipo": "analista", "agente": None},
-}
-
-def login():
-    with st.sidebar:
-        st.markdown("## Login")
-        user = st.text_input("Usuário")
-        password = st.text_input("Senha", type="password")
-        if st.button("Entrar"):
-            if user in USERS and USERS[user]["senha"] == password:
-                st.session_state['usuario'] = user
-                st.session_state['tipo'] = USERS[user]['tipo']
-                st.session_state['agente'] = USERS[user]['agente']
-                st.rerun()
+def run_query(query, params=None, fetch="df"):
+    """
+    fetch='df' -> retorna DataFrame
+    fetch='one' -> um registro
+    fetch=None -> só executa (INSERT/UPDATE/DELETE)
+    """
+    conn = get_conn()
+    with conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, params or ())
+            if fetch == "df":
+                rows = cur.fetchall()
+                return pd.DataFrame(rows)
+            elif fetch == "one":
+                row = cur.fetchone()
+                return dict(row) if row else None
             else:
-                st.error("Usuário ou senha incorretos")
+                return True
 
-# ========== APP ==========
-def app():
-    st.markdown("---")
-    tipo = st.session_state['tipo']
-    agente = st.session_state['agente']
+# =======================
+# Utilitários / Negócio
+# =======================
+SITUACOES = ["Em análise", "Aprovada", "Reprovada", "Stand by"]
+SIM_NAO   = ["Não", "Sim"]  # default = Não
 
-    # ======== COMERCIAL ========
-    if tipo == "comercial":
-        st.subheader(f"🧾 Painel do Comercial - {agente}")
-        empresa = st.text_input("Nova empresa:")
-        if st.button("Adicionar empresa"):
-            if empresa.strip():
-                inserir_empresa(empresa.strip(), agente)
-                st.success(f"✅ '{empresa}' adicionada com sucesso!")
-                st.rerun()
-            else:
-                st.warning("Digite o nome da empresa.")
+def ensure_pendencias_empresa(empresa: str):
+    """
+    Garante que a empresa tenha todas as pendências base de dim_pendencias
+    na tabela pendencias_empresa.
+    """
+    # documentos base
+    base_docs = run_query("SELECT documento FROM dim_pendencias ORDER BY documento;")
+    if base_docs.empty:
+        return
 
-        query = """
-        SELECT empresa, agente, entrada, situacao, limite, comentario_interno, saida_credito
-        FROM analise_credito WHERE agente = %s ORDER BY entrada DESC;
-        """
-        empresas = carregar_dados(query, (agente,))
+    # já existentes
+    ja = run_query(
+        "SELECT documento FROM pendencias_empresa WHERE empresa = %s;",
+        (empresa,)
+    )
+    ja_set = set(ja["documento"].tolist()) if not ja.empty else set()
 
-        if not empresas.empty:
-            st.dataframe(empresas, use_container_width=True)
-            empresa_sel = st.selectbox("Selecione uma empresa:", empresas['empresa'])
-            if empresa_sel:
-                st.markdown(f"### 📂 Pendências da empresa {empresa_sel}")
-                query_pend = """
-                SELECT documento, status, data_ultima_atualizacao
-                FROM pendencias_empresa WHERE empresa = %s
-                ORDER BY status DESC, documento;
-                """
-                pend = carregar_dados(query_pend, (empresa_sel,))
-                pendentes = pend[pend["status"] == "pendente"].shape[0]
-                st.info(f"📄 Documentos pendentes: **{pendentes}**")
-                st.dataframe(pend, use_container_width=True)
-        else:
-            st.info("Nenhuma empresa adicionada.")
-
-    # ======== ANALISTA ========
-    elif tipo == "analista":
-        if "aba_analista" not in st.session_state:
-            st.session_state["aba_analista"] = "overview"
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📊 Overview", use_container_width=True):
-                st.session_state["aba_analista"] = "overview"
-        with col2:
-            if st.button("🧠 Detalhada", use_container_width=True):
-                st.session_state["aba_analista"] = "detalhada"
-
-        st.markdown("---")
-
-        # === OVERVIEW ===
-        if st.session_state["aba_analista"] == "overview":
-            st.subheader("📈 Status das Empresas")
-            query_emp = """
-            SELECT a.empresa, a.agente, a.situacao,
-                   COUNT(*) FILTER (WHERE p.status = 'pendente') AS pendentes_restantes
-            FROM analise_credito a
-            LEFT JOIN pendencias_empresa p ON a.empresa = p.empresa
-            GROUP BY a.empresa, a.agente, a.situacao
-            ORDER BY pendentes_restantes DESC;
-            """
-            status_empresas = carregar_dados(query_emp)
-            if not status_empresas.empty:
-                def color_status(s):
-                    cores = {
-                        "Aprovada": "🟢 Aprovada",
-                        "Reprovada": "🔴 Reprovada",
-                        "Em análise": "🟡 Em análise",
-                        "Stand by": "⚪ Stand by"
-                    }
-                    return cores.get(s, "⚪ Não definida")
-                status_empresas["situacao"] = status_empresas["situacao"].apply(color_status)
-                st.dataframe(status_empresas, use_container_width=True)
-
-                empresa_sel = st.selectbox("Selecionar empresa:", status_empresas["empresa"])
-                if empresa_sel:
-                    st.markdown(f"### 📂 Pendências - {empresa_sel}")
-                    query_p = """
-                    SELECT documento, status, data_ultima_atualizacao
-                    FROM pendencias_empresa WHERE empresa = %s
-                    ORDER BY status DESC, documento;
+    to_insert = [d for d in base_docs["documento"].tolist() if d not in ja_set]
+    if to_insert:
+        conn = get_conn()
+        with conn:
+            with conn.cursor() as cur:
+                cur.executemany(
                     """
-                    pend = carregar_dados(query_p, (empresa_sel,))
-                    pendentes = pend[pend["status"] == "pendente"].shape[0]
-                    st.info(f"📄 Documentos pendentes: **{pendentes}**")
-                    st.dataframe(pend, use_container_width=True)
-            else:
-                st.warning("Nenhuma empresa cadastrada.")
+                    INSERT INTO pendencias_empresa (empresa, documento, status, data_ultima_atualizacao)
+                    VALUES (%s, %s, 'pendente', NOW())
+                    ON CONFLICT (empresa, documento) DO NOTHING;
+                    """,
+                    [(empresa, d) for d in to_insert]
+                )
 
-        # === DETALHADA ===
-        elif st.session_state["aba_analista"] == "detalhada":
-            st.subheader("🧩 Edição Completa")
-            query_all = "SELECT * FROM analise_credito ORDER BY entrada DESC;"
-            dados = carregar_dados(query_all)
-            if not dados.empty:
-                for i, row in dados.iterrows():
-                    with st.expander(f"📄 {row['empresa']} — {row['situacao']}"):
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            situacao = st.selectbox(
-                                "Situação",
-                                ["Em análise", "Aprovada", "Reprovada", "Stand by"],
-                                index=["Em análise", "Aprovada", "Reprovada", "Stand by"].index(
-                                    row["situacao"] if row["situacao"] in ["Em análise", "Aprovada", "Reprovada", "Stand by"] else "Em análise"
-                                ),
-                                key=f"situacao_{i}"
-                            )
-                            limite = st.number_input("Limite (R$)", value=float(row["limite"] or 0), key=f"limite_{i}")
-                        with col2:
-                            comentario = st.text_area("Comentário Interno", value=row["comentario_interno"], key=f"coment_{i}")
-                            saida_credito = st.date_input("Saída Crédito", value=row["saida_credito"], key=f"saida_{i}")
-                        with col3:
-                            pendencias = st.text_input("Pendências", value=row["pendencias"], key=f"pend_{i}")
+def simnao_to_date(simnao: str):
+    """ 'Sim' -> hoje; 'Não' -> None """
+    return date.today() if simnao == "Sim" else None
 
-                        if st.button(f"💾 Salvar {row['empresa']}", key=f"save_{i}"):
-                            query_upd = """
-                            UPDATE analise_credito
-                            SET situacao=%s, limite=%s, comentario_interno=%s, saida_credito=%s, pendencias=%s
-                            WHERE empresa=%s;
+def date_to_simnao(dt):
+    """ date/None -> 'Sim'/'Não' """
+    return "Sim" if dt else "Não"
+
+
+# =======================
+# OVERVIEW
+# =======================
+def overview():
+    st.markdown(f"<div class='sub-title'>📊 Overview</div>", unsafe_allow_html=True)
+
+    # Quadro principal: empresa, agente, entrada, situacao, limite, saída crédito, pendentes
+    df = run_query(
+        """
+        SELECT
+          empresa,
+          agente,
+          entrada,
+          situacao,
+          limite,
+          saida_credito,
+          COALESCE((
+            SELECT COUNT(*) FROM pendencias_empresa pe
+            WHERE pe.empresa = ac.empresa AND pe.status='pendente'
+          ), 0) AS pendentes_restantes
+        FROM analise_credito ac
+        ORDER BY entrada DESC NULLS LAST, empresa ASC;
+        """
+    )
+
+    if df.empty:
+        st.info("Nenhuma empresa cadastrada ainda.")
+        return
+
+    # Métricas gerais
+    colm = st.columns(4)
+    with colm[0]:
+        st.markdown("<div class='label'>Total de empresas</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-pill text'>{len(df):,}</div>", unsafe_allow_html=True)
+    with colm[1]:
+        a = (df["situacao"] == "Aprovada").sum()
+        st.markdown("<div class='label'>Aprovadas</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-pill good-pill'>{a:,}</div>", unsafe_allow_html=True)
+    with colm[2]:
+        r = (df["situacao"] == "Reprovada").sum()
+        st.markdown("<div class='label'>Reprovadas</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-pill warn-pill'>{r:,}</div>", unsafe_allow_html=True)
+    with colm[3]:
+        pend_total = int(df["pendentes_restantes"].sum())
+        st.markdown("<div class='label'>Pendências totais</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-pill warn-pill'>{pend_total:,}</div>", unsafe_allow_html=True)
+
+    st.write("")
+    st.markdown("<div class='sub-title'>📚 Status das empresas</div>", unsafe_allow_html=True)
+
+    show = df.copy()
+    # formatações amigáveis
+    show["entrada"] = show["entrada"].astype(str)
+    show["saida_credito"] = show["saida_credito"].astype(str)
+    st.dataframe(
+        show[["empresa","agente","entrada","situacao","limite","saida_credito","pendentes_restantes"]],
+        use_container_width=True, hide_index=True
+    )
+
+    # Expansível: lista de pendências por empresa
+    st.write("")
+    emp_list = df["empresa"].tolist()
+    sel = st.selectbox("Selecione uma empresa para ver as pendências:", emp_list)
+    if sel:
+        ensure_pendencias_empresa(sel)
+        p = run_query(
+            """
+            SELECT documento, status, data_ultima_atualizacao
+            FROM pendencias_empresa
+            WHERE empresa = %s
+            ORDER BY documento;
+            """,
+            (sel,)
+        )
+        if p.empty:
+            st.info("Sem pendências cadastradas.")
+        else:
+            p["data_ultima_atualizacao"] = p["data_ultima_atualizacao"].astype(str)
+            st.dataframe(p, use_container_width=True, hide_index=True)
+
+
+# =======================
+# DETALHADA (FORM ANALISTA)
+# =======================
+def detalhada():
+    st.markdown(f"<div class='sub-title'>🧠 Detalhada</div>", unsafe_allow_html=True)
+
+    empresas = run_query("SELECT empresa, agente, situacao FROM analise_credito ORDER BY empresa;")
+    if empresas.empty:
+        st.info("Nenhuma empresa cadastrada ainda.")
+        return
+
+    emp_names = empresas["empresa"].tolist()
+    emp = st.selectbox("Escolha a empresa:", emp_names, index=0, key="sel_emp_detalhe")
+    ensure_pendencias_empresa(emp)
+
+    dados = run_query(
+        """
+        SELECT empresa, agente, entrada, situacao, limite, comentario_interno,
+               saida_credito, envio_das, emissao_contrato, assinatura,
+               homologacao, apto_a_operar, email_informando
+        FROM analise_credito
+        WHERE empresa = %s
+        """,
+        (emp,),
+        fetch="df"
+    ).iloc[0]
+
+    # ===== bloco de edição
+    st.markdown("##### ✏️ Edição Completa")
+    c1,c2,c3 = st.columns([1,1.2,1])
+
+    with c1:
+        situacao = st.selectbox(
+            "Situação",
+            SITUACOES,
+            index = SITUACOES.index(dados["situacao"]) if dados["situacao"] in SITUACOES else 0,
+            help="Definida manualmente pelo analista."
+        )
+        limite = st.number_input("Limite (R$)", value=float(dados["limite"]) if dados["limite"] else 0.0, step=1000.0, min_value=0.0)
+
+    with c2:
+        comentario = st.text_area("Comentário Interno", value=dados["comentario_interno"] or "", height=140)
+
+    with c3:
+        st.markdown("**Pendências (quantitativo)**")
+        qtd_pend = run_query(
+            "SELECT COUNT(*) q FROM pendencias_empresa WHERE empresa=%s AND status='pendente';",
+            (emp,), fetch="one"
+        )["q"]
+        st.markdown(f"<div class='metric-pill warn-pill' style='text-align:center;font-size:1.2rem;'>{qtd_pend} pendente(s)</div>", unsafe_allow_html=True)
+
+    c4,c5 = st.columns([1,1])
+    with c4:
+        saida_credito = st.date_input("Saída Crédito", value=pd.to_datetime(dados["saida_credito"]).date() if dados["saida_credito"] else None)
+    with c5:
+        apto = st.selectbox("Apto a operar", SIM_NAO, index=SIM_NAO.index("Sim" if dados["apto_a_operar"] else "Não"))
+
+    st.markdown("##### ☑️ Checklist Operacional")
+    c6,c7,c8,c9 = st.columns(4)
+    with c6:
+        envio_das = st.selectbox("Envio DAS", SIM_NAO, index=SIM_NAO.index(date_to_simnao(dados["envio_das"])))
+    with c7:
+        emissao_contrato = st.selectbox("Emissão contrato", SIM_NAO, index=SIM_NAO.index(date_to_simnao(dados["emissao_contrato"])))
+    with c8:
+        assinatura = st.selectbox("Assinatura", SIM_NAO, index=SIM_NAO.index(date_to_simnao(dados["assinatura"])))
+    with c9:
+        homologacao = st.selectbox("Homologação", SIM_NAO, index=SIM_NAO.index(date_to_simnao(dados["homologacao"])))
+
+    # ===== Pendências (grid interativo)
+    st.markdown("##### 📎 Pendências (marque recebido quando o documento chegar)")
+    pend = run_query(
+        """
+        SELECT id, documento, status, data_ultima_atualizacao
+        FROM pendencias_empresa
+        WHERE empresa=%s
+        ORDER BY documento;
+        """,
+        (emp,)
+    )
+    # Config do editor: Selectbox por linha (pendente/recebido)
+    if not pend.empty:
+        pend["status"] = pend["status"].fillna("pendente")
+        edited = st.data_editor(
+            pend,
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "status": st.column_config.SelectboxColumn(
+                    "status", options=["pendente","recebido"], required=True
+                ),
+                "data_ultima_atualizacao": st.column_config.DatetimeColumn(
+                    "data_ultima_atualizacao", disabled=True
+                ),
+                "id": st.column_config.NumberColumn("id", disabled=True),
+                "documento": st.column_config.TextColumn("documento", disabled=True)
+            },
+            key=f"editor_pend_{emp}"
+        )
+    else:
+        edited = pend
+
+    st.write("")
+    save = st.button("💾 Salvar alterações", type="primary", help="Persiste todas as alterações desta empresa")
+    if save:
+        conn = get_conn()
+        with conn:
+            with conn.cursor() as cur:
+                # Update principal
+                cur.execute(
+                    """
+                    UPDATE analise_credito
+                    SET situacao=%s,
+                        limite=%s,
+                        comentario_interno=%s,
+                        saida_credito=%s,
+                        envio_das=%s,
+                        emissao_contrato=%s,
+                        assinatura=%s,
+                        homologacao=%s,
+                        apto_a_operar=%s
+                    WHERE empresa=%s
+                    """,
+                    (
+                        situacao,
+                        limite if limite else None,
+                        comentario,
+                        saida_credito,
+                        simnao_to_date(envio_das),
+                        simnao_to_date(emissao_contrato),
+                        simnao_to_date(assinatura),
+                        simnao_to_date(homologacao),
+                        (apto == "Sim"),
+                        emp
+                    )
+                )
+
+                # Update pendências linha a linha
+                if not edited.empty:
+                    for _, row in edited.iterrows():
+                        cur.execute(
                             """
-                            salvar_dados(query_upd, (situacao, limite, comentario, saida_credito, pendencias, row["empresa"]))
-                            st.success(f"✅ Empresa '{row['empresa']}' atualizada!")
-                            st.rerun()
-            else:
-                st.info("Nenhum dado disponível.")
+                            UPDATE pendencias_empresa
+                            SET status=%s,
+                                data_ultima_atualizacao=NOW()
+                            WHERE id=%s
+                            """,
+                            (row["status"], int(row["id"]))
+                        )
 
-# ========== MAIN ==========
-if 'usuario' not in st.session_state:
-    login()
-else:
-    app()
+        st.success("Alterações salvas com sucesso! Atualize o Overview para ver os números recalculados.")
+
+
+# =======================
+# MAIN (Tabs)
+# =======================
+tab1, tab2 = st.tabs(["📊 Overview", "🧠 Detalhada"])
+with tab1:
+    overview()
+with tab2:
+    detalhada()
