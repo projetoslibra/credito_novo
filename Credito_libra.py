@@ -6,7 +6,7 @@ from datetime import datetime
 
 # ====== CONFIGURAÇÃO ======
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-SPREADSHEET_ID = '18y83fQmWjBvjXaktOJ2PV3OCNtKIouXfF4zKWy_uXMQ'
+SPREADSHEET_ID = '140wylbeBRp7PE2qwpOn_o1I_tIh0uaP7yFVKC6-2Ib8'
 ABA_ANALISE = 'ANALISE_RETORNO'
 ABA_PENDENCIAS = 'DIM_PENDENCIAS'
 
