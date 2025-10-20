@@ -4,7 +4,7 @@ import psycopg2
 from psycopg2 import sql
 from datetime import datetime
 
-# ======= CONFIGURAÇÃO VISUAL =======
+# ========== CORES ==========
 SPACE_CADET = "#042F3C"
 HARVEST_GOLD = "#C66300"
 HONEYDEW = "#FFF4E3"
@@ -12,9 +12,9 @@ SLATE_GRAY = "#717c89"
 
 st.set_page_config(page_title="Libra Capital | Crédito", page_icon="📋", layout="wide")
 
+# ========== ESTILO GLOBAL ==========
 st.markdown(f"""
     <style>
-        /* Background e fontes */
         .stApp {{
             background-color: {SPACE_CADET};
             color: {HONEYDEW};
@@ -23,10 +23,6 @@ st.markdown(f"""
             color: {HONEYDEW};
             font-weight: 700;
         }}
-        .stDataFrame {{
-            background-color: {SPACE_CADET};
-        }}
-        /* Botões personalizados */
         .stButton>button {{
             background-color: {HARVEST_GOLD};
             color: white;
@@ -37,9 +33,8 @@ st.markdown(f"""
         }}
         .stButton>button:hover {{
             background-color: #e67700;
-            color: white;
         }}
-        /* Navegação customizada */
+        /* Abas personalizadas */
         .nav-container {{
             display: flex;
             justify-content: center;
@@ -67,16 +62,28 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# ======= LOGO E HEADER =======
-st.markdown(f"""
-    <div style='text-align: center;'>
-        <img src="https://raw.githubusercontent.com/seu_usuario/seu_repositorio/main/imagens/logo_libra.png" width="150">
-        <h1 style="color:{HONEYDEW}; margin-top: -10px;">LIBRA CAPITAL</h1>
-        <h3 style="color:{HARVEST_GOLD}; margin-top: -20px;">Painel de Análise de Crédito</h3>
-    </div>
-""", unsafe_allow_html=True)
+# ========== HEADER ==========
+with st.container():
+    cols = st.columns([0.2, 0.8])
+    with cols[0]:
+        st.image("imagens/Capital-branca.png", width=220, output_format="PNG")
+    with cols[1]:
+        st.markdown(
+            f"""
+            <span style='
+                color: {HONEYDEW};
+                font-size: 2.4rem;
+                font-weight:900;
+                border-bottom: 2px solid {HARVEST_GOLD}99;
+                padding-bottom: 0.12em;'>
+                LIBRA CAPITAL
+                <span style='font-weight:400;color:{HARVEST_GOLD};'>| Crédito Corporativo</span>
+            </span>
+            """,
+            unsafe_allow_html=True
+        )
 
-# ======= CONFIG DB =======
+# ========== CONEXÃO DB ==========
 DB_CONFIG = {
     "host": st.secrets["db_host"],
     "port": st.secrets["db_port"],
@@ -88,27 +95,6 @@ DB_CONFIG = {
 def conectar():
     return psycopg2.connect(**DB_CONFIG)
 
-# ======= LOGIN =======
-USERS = {
-    "Breno": {"senha": "Breno13", "tipo": "comercial", "agente": "Breno"},
-    "analista": {"senha": "1234", "tipo": "analista", "agente": None},
-}
-
-def login():
-    with st.sidebar:
-        st.markdown("## Login")
-        user = st.text_input("Usuário")
-        password = st.text_input("Senha", type="password")
-        if st.button("Entrar"):
-            if user in USERS and USERS[user]["senha"] == password:
-                st.session_state['usuario'] = user
-                st.session_state['tipo'] = USERS[user]['tipo']
-                st.session_state['agente'] = USERS[user]['agente']
-                st.rerun()
-            else:
-                st.error("Usuário ou senha incorretos")
-
-# ======= FUNÇÕES DB =======
 def carregar_dados(query, params=None):
     conn = conectar()
     df = pd.read_sql(query, conn, params=params)
@@ -135,13 +121,33 @@ def inserir_empresa(empresa, agente):
     cur.close()
     conn.close()
 
-# ======= APP =======
+# ========== LOGIN ==========
+USERS = {
+    "Breno": {"senha": "Breno13", "tipo": "comercial", "agente": "Breno"},
+    "analista": {"senha": "1234", "tipo": "analista", "agente": None},
+}
+
+def login():
+    with st.sidebar:
+        st.markdown("## Login")
+        user = st.text_input("Usuário")
+        password = st.text_input("Senha", type="password")
+        if st.button("Entrar"):
+            if user in USERS and USERS[user]["senha"] == password:
+                st.session_state['usuario'] = user
+                st.session_state['tipo'] = USERS[user]['tipo']
+                st.session_state['agente'] = USERS[user]['agente']
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos")
+
+# ========== APP ==========
 def app():
     st.markdown("---")
     tipo = st.session_state['tipo']
     agente = st.session_state['agente']
 
-    # ======= COMERCIAL =======
+    # ======== COMERCIAL ========
     if tipo == "comercial":
         st.subheader(f"🧾 Painel do Comercial - {agente}")
         empresa = st.text_input("Nova empresa:")
@@ -176,23 +182,22 @@ def app():
         else:
             st.info("Nenhuma empresa adicionada.")
 
-    # ======= ANALISTA =======
+    # ======== ANALISTA ========
     elif tipo == "analista":
-        # Controle das abas
         if "aba_analista" not in st.session_state:
             st.session_state["aba_analista"] = "overview"
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📊 Overview", key="overview", use_container_width=True):
+            if st.button("📊 Overview", use_container_width=True):
                 st.session_state["aba_analista"] = "overview"
         with col2:
-            if st.button("🧠 Detalhada", key="detalhada", use_container_width=True):
+            if st.button("🧠 Detalhada", use_container_width=True):
                 st.session_state["aba_analista"] = "detalhada"
 
         st.markdown("---")
 
-        # === ABA 1: OVERVIEW ===
+        # === OVERVIEW ===
         if st.session_state["aba_analista"] == "overview":
             st.subheader("📈 Status das Empresas")
             query_emp = """
@@ -231,7 +236,7 @@ def app():
             else:
                 st.warning("Nenhuma empresa cadastrada.")
 
-        # === ABA 2: DETALHADA ===
+        # === DETALHADA ===
         elif st.session_state["aba_analista"] == "detalhada":
             st.subheader("🧩 Edição Completa")
             query_all = "SELECT * FROM analise_credito ORDER BY entrada DESC;"
@@ -267,3 +272,9 @@ def app():
                             st.rerun()
             else:
                 st.info("Nenhum dado disponível.")
+
+# ========== MAIN ==========
+if 'usuario' not in st.session_state:
+    login()
+else:
+    app()
