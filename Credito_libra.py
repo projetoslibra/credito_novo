@@ -5,11 +5,11 @@ from datetime import datetime
 
 # ========== CONFIGURAÇÃO DO BANCO DE DADOS ==========
 DB_CONFIG = {
-    "host": st.secrets["trolley.proxy.rlwy.net"],
-    "port": st.secrets["56227"],
-    "dbname": st.secrets["railway"],
-    "user": st.secrets["postgres"],
-    "password": st.secrets["KnwLKScxWfTIzogZaMBITMLLGQGCJLxj"]
+    "host": st.secrets["db_host"],
+    "port": st.secrets["db_port"],
+    "dbname": st.secrets["db_name"],
+    "user": st.secrets["db_user"],
+    "password": st.secrets["db_password"]
 }
 
 # ========== PERMISSÕES POR USUÁRIO ==========
