@@ -6,3 +6,4 @@ openpyxl
 gspread
 google-auth
 oauth2client
+psycopg2-binary
