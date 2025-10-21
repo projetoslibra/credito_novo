@@ -533,7 +533,7 @@ def detalhada(tipo, agente):
         if saida_credito and saida_credito.strip():
             try:
                 data_formatada = datetime.strptime(saida_credito.strip(), "%d-%m-%Y").date()
-                payload["saida_credito"] = data_formatada
+                payload["saida_credito"] = data_formatada.strftime("%Y-%m-%d")
             except ValueError:
                 st.warning("Data inválida em Saída Crédito (use DD-MM-YYYY).")
                 st.stop()
