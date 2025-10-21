@@ -530,20 +530,23 @@ def detalhada(tipo, agente):
         }
 
         # 🔧 Corrige formato da data (DD-MM-YYYY)
-    if saida_credito and saida_credito.strip():
-       try:
-        data_formatada = datetime.strptime(saida_credito.strip(), "%d-%m-%Y")
-        payload["saida_credito"] = data_formatada.strftime("%Y-%m-%d")
-       except ValueError:
-        st.warning("Data inválida em Saída Crédito (use DD-MM-YYYY).")
-        st.stop()
-    
-    else:
-     payload["saida_credito"] = None
+        if saida_credito and saida_credito.strip():
+            try:
+                data_formatada = datetime.strptime(saida_credito.strip(), "%d-%m-%Y").date()
+                payload["saida_credito"] = data_formatada  # agora vai como date pro Postgres
+            except ValueError:
+                st.warning("Data inválida em Saída Crédito (use DD-MM-YYYY).")
+                st.stop()
+        else:
+            payload["saida_credito"] = None
 
-    atualizar_campos_empresa(empresa, payload)
-    st.success("Empresa atualizada!")
-    st.rerun()
+        # Atualiza no banco
+        try:
+            atualizar_campos_empresa(empresa, payload)
+            st.success("Empresa atualizada com sucesso!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao salvar no banco: {e}")
 
 # =========================================================
 # ROTEAMENTO
