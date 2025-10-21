@@ -20,50 +20,77 @@ st.set_page_config(
 )
 
 # =========================================================
-# HEADER
+# SIDEBAR (Logo + saudação com hover)
+# =========================================================
+with st.sidebar:
+    st.markdown(
+        f"""
+        <style>
+        .logo-hover {{
+            transition: all 0.3s ease-in-out;
+            filter: drop-shadow(0px 0px 8px rgba(198,99,0,0.4));
+        }}
+        .logo-hover:hover {{
+            transform: scale(1.06);
+            filter: drop-shadow(0px 0px 12px rgba(198,99,0,0.6));
+        }}
+        </style>
+
+        <div style="
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            margin-top:10px;
+            margin-bottom:15px;">
+            <img src='imagens/Capital-branca.png' class='logo-hover' width='150'>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+    st.success("Olá, analista (analista)")
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+
+# =========================================================
+# HEADER CENTRALIZADO
 # =========================================================
 def header():
-    col1, col2 = st.columns([0.1, 0.9])
-
-    with col1:
-        st.image("imagens/Capital-branca.png", width=90)
-
-    with col2:
-        st.markdown(
-            f"""
-            <div style='
-                display: flex;
-                align-items: center;
-                justify-content: flex-start;
-                padding-top: 25px;
+    st.markdown(
+        f"""
+        <div style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            padding-top: 25px;
+            padding-bottom: 25px;
+        ">
+            <span style='
+                color:{HONEYDEW};
+                font-size: 1.8rem;
+                font-weight:900;
+                letter-spacing:0.02em;
+                border-bottom: 2px solid {HARVEST_GOLD}80;
+                padding-bottom: 0.1em;
+                line-height: 1.15;
+                text-shadow: 0px 0px 8px rgba(255,255,255,0.1);
             '>
-                <span style='
-                    color:{HONEYDEW};
-                    font-size: 1.8rem;
-                    font-weight:900;
-                    letter-spacing:0.02em;
-                    border-bottom: 2px solid {HARVEST_GOLD}80;
-                    padding-bottom: 0.1em;
-                    line-height: 1.15;
-                    display:inline-block;
-                '>
-                    LIBRA CAPITAL
-                </span>
-                <span style='
-                    font-weight:400;
-                    color:{HARVEST_GOLD};
-                    font-size: 1.3rem;
-                '>
-                    | Análise de Crédito
-                </span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    
-    # espaço entre header e botões
-    st.markdown("<div style='margin-bottom: 1.8rem;'></div>", unsafe_allow_html=True) 
+                LIBRA CAPITAL
+            </span>
+            <span style='
+                font-weight:400;
+                color:{HARVEST_GOLD};
+                font-size: 1.3rem;
+            '>
+                | Análise de Crédito
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True) 
 
 # =========================================================
 # CSS (tema escuro fixo + refinado)
