@@ -23,30 +23,34 @@ st.set_page_config(
 # HEADER
 # =========================================================
 def header():
-    # header responsivo sem corte
+    # header responsivo sem corte nem sobreposição
     with st.container():
-        cols = st.columns([0.20, 0.80])
+        cols = st.columns([0.15, 0.85])
         with cols[0]:
-            st.image("imagens/Capital-branca.png", use_container_width=True, output_format="PNG")
+            st.image(
+                "imagens/Capital-branca.png",
+                width=150,
+                output_format="PNG"
+            )
         with cols[1]:
             st.markdown(
                 f"""
                 <div style="
                     display:flex;
                     align-items:flex-end;
-                    gap:.6rem;
-                    line-height:1.15;
+                    gap:.5rem;
+                    line-height:1.1;
                     padding-bottom:.35rem;
                     border-bottom:2px solid {HARVEST_GOLD}99;">
                   <span style="
                     color:{HONEYDEW};
-                    font-size:2.0rem;
+                    font-size:1.9rem;
                     font-weight:900;">
                     LIBRA CAPITAL
                   </span>
                   <span style="
                     color:{HARVEST_GOLD};
-                    font-size:1.6rem;
+                    font-size:1.5rem;
                     font-weight:400;">
                     | Análise de Crédito
                   </span>
@@ -55,23 +59,29 @@ def header():
                 unsafe_allow_html=True
             )
 
-# ========== CSS (tema escuro fixo + polimento) ==========
+# =========================================================
+# CSS (tema escuro fixo + refinado)
+# =========================================================
 st.markdown(
     f"""
     <style>
-      html, body, [data-testid="stAppViewContainer"] {{
-        background: #061e26 !important;
+      html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"], [data-testid="stHeader"] {{
+        background-color: #061e26 !important;
         color: {HONEYDEW} !important;
       }}
+      * {{ color-scheme: dark !important; }}
       .block-container {{ padding-top: 1.2rem; }}
-      /* Botões de abas */
       .stTabs [data-baseweb="tab-list"] button {{
         background: {HARVEST_GOLD};
-        color: white;
+        color: white !important;
         border-radius: 6px;
         margin-right: 6px;
+        font-weight: 600;
       }}
-      /* KPIs */
+      .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {{
+        background: {HARVEST_GOLD}cc;
+        border-bottom: 2px solid white;
+      }}
       .kpi-card {{
         background: {HARVEST_GOLD}22;
         border: 1px solid {HARVEST_GOLD}55;
@@ -80,13 +90,14 @@ st.markdown(
       }}
       .kpi-card h3 {{ margin: 0; font-size: 1.7rem; color: {HONEYDEW}; }}
       .kpi-card span {{ font-size: .9rem; color: {SLATE_GRAY}; }}
-      /* caixas */
       .dark-box {{
         background: #0b2e39; border: 1px solid #0e3a47; border-radius: 8px; padding: 10px 14px;
       }}
-      /* tabelas */
       .stDataFrame, .stTable, .stMarkdown, .stText {{
         color: {HONEYDEW} !important;
+      }}
+      [data-testid="stAppViewBlockContainer"] {{
+        background-color: #061e26 !important;
       }}
     </style>
     """,
