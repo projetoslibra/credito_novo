@@ -517,31 +517,32 @@ def detalhada(tipo, agente):
 
     # SALVAR CAMPOS PRINCIPAIS (Analista)
     if editable:
-        if st.button("💾 Salvar dados da empresa", type="primary", use_container_width=True):
-            payload = {
-                "situacao": situacao,
-                "limite": limite,
-                "comentario_interno": comentario_interno,
-                "envio_das": envio_das,
-                "emissao_contrato": emissao_contrato,
-                "assinatura": assinatura,
-                "homologacao": homologacao,
-                "apto_a_operar": apto_a_operar,
-            }
-            # saída_crédito se estiver no formato válido
-            try:
-                if saida_credito.strip():
-                    datetime.strptime(saida_credito.strip(), "%Y-%m-%d")
-                    payload["saida_credito"] = saida_credito.strip()
-                else:
-                    payload["saida_credito"] = None
-            except ValueError:
-                st.warning("Data inválida em Saída Crédito (use YYYY-MM-DD).")
-                st.stop()
+     if st.button("💾 Salvar dados da empresa", type="primary", use_container_width=True):
+        payload = {
+            "situacao": situacao,
+            "limite": limite,
+            "comentario_interno": comentario_interno,
+            "envio_das": envio_das,
+            "emissao_contrato": emissao_contrato,
+            "assinatura": assinatura,
+            "homologacao": homologacao,
+            "apto_a_operar": apto_a_operar,
+        }
 
-            atualizar_campos_empresa(empresa, payload)
-            st.success("Empresa atualizada!")
-            st.rerun()
+        # 🔧 Corrige formato da data (DD-MM-YYYY)
+        if saida_credito and saida_credito.strip():
+            try:
+                data_formatada = datetime.strptime(saida_credito.strip(), "%d-%m-%Y").date()
+                payload["saida_credito"] = data_formatada
+            except ValueError:
+                st.warning("Data inválida em Saída Crédito (use DD-MM-YYYY).")
+                st.stop()
+        else:
+            payload["saida_credito"] = None
+
+        atualizar_campos_empresa(empresa, payload)
+        st.success("Empresa atualizada!")
+        st.rerun()
 
 # =========================================================
 # ROTEAMENTO
