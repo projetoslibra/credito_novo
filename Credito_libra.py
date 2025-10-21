@@ -23,41 +23,31 @@ st.set_page_config(
 # HEADER
 # =========================================================
 def header():
-    st.markdown(
-        f"""
-        <div style="
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 1rem;
-            height: 90px;
-            padding-left: 2rem;
-            margin-top: 0.5rem;
-        ">
-            <img src="imagens/Capital-branca.png" width="130" style="margin-top: 0;">
-            <div style="display: flex; flex-direction: column; justify-content: center;">
-                <span style="
-                    color:{HONEYDEW};
-                    font-size:1.9rem;
+    with st.container():
+        cols = st.columns([0.095, 0.905])
+        with cols[0]:
+            st.image("imagens/Capital-branca.png", width=120)
+        with cols[1]:
+            st.markdown(
+                f"""
+                <span style='
+                    color: {HONEYDEW};
+                    font-size: 2.1rem;
                     font-weight:900;
-                    line-height:1.2;
-                ">
+                    letter-spacing:0.03em;
+                    border-bottom: 2px solid {HARVEST_GOLD}66;
+                    padding-bottom: 0.12em;
+                    line-height: 1.14;
+                    '>
                     LIBRA CAPITAL
+                    <span style='font-weight:400;color:{HARVEST_GOLD};'>| Análise de Crédito</span>
                 </span>
-                <span style="
-                    color:{HARVEST_GOLD};
-                    font-size:1.5rem;
-                    font-weight:400;
-                    border-bottom:2px solid {HARVEST_GOLD}99;
-                    width: fit-content;
-                ">
-                    | Análise de Crédito
-                </span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+                """,
+                unsafe_allow_html=True
+            )
+
+    # espaçamento abaixo do header
+    st.markdown('<br/>', unsafe_allow_html=True)
 
 # =========================================================
 # CSS (tema escuro fixo + refinado)
