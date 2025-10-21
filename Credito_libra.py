@@ -23,32 +23,55 @@ st.set_page_config(
 # HEADER
 # =========================================================
 def header():
+    # header responsivo sem corte
     with st.container():
-        cols = st.columns([0.18, 0.82])
+        cols = st.columns([0.20, 0.80])
         with cols[0]:
-            st.image("imagens/Capital-branca.png", width=180, output_format="PNG")
+            st.image("imagens/Capital-branca.png", use_container_width=True, output_format="PNG")
         with cols[1]:
             st.markdown(
                 f"""
-                <span style='
-                    color: {HONEYDEW};
-                    font-size: 2.0rem;
-                    font-weight:900;
-                    border-bottom: 2px solid {HARVEST_GOLD}99;
-                    padding-bottom: 0.12em;'>
+                <div style="
+                    display:flex;
+                    align-items:flex-end;
+                    gap:.6rem;
+                    line-height:1.15;
+                    padding-bottom:.35rem;
+                    border-bottom:2px solid {HARVEST_GOLD}99;">
+                  <span style="
+                    color:{HONEYDEW};
+                    font-size:2.0rem;
+                    font-weight:900;">
                     LIBRA CAPITAL
-                    <span style='font-weight:400;color:{HARVEST_GOLD};'>| Análise de Crédito</span>
-                </span>
+                  </span>
+                  <span style="
+                    color:{HARVEST_GOLD};
+                    font-size:1.6rem;
+                    font-weight:400;">
+                    | Análise de Crédito
+                  </span>
+                </div>
                 """,
                 unsafe_allow_html=True
             )
 
-# CSS fino
+# ========== CSS (tema escuro fixo + polimento) ==========
 st.markdown(
     f"""
     <style>
+      html, body, [data-testid="stAppViewContainer"] {{
+        background: #061e26 !important;
+        color: {HONEYDEW} !important;
+      }}
       .block-container {{ padding-top: 1.2rem; }}
-      .stTabs [data-baseweb="tab-list"] button {{ background: {HARVEST_GOLD}; color: white; border-radius: 6px; margin-right: 6px; }}
+      /* Botões de abas */
+      .stTabs [data-baseweb="tab-list"] button {{
+        background: {HARVEST_GOLD};
+        color: white;
+        border-radius: 6px;
+        margin-right: 6px;
+      }}
+      /* KPIs */
       .kpi-card {{
         background: {HARVEST_GOLD}22;
         border: 1px solid {HARVEST_GOLD}55;
@@ -57,8 +80,13 @@ st.markdown(
       }}
       .kpi-card h3 {{ margin: 0; font-size: 1.7rem; color: {HONEYDEW}; }}
       .kpi-card span {{ font-size: .9rem; color: {SLATE_GRAY}; }}
+      /* caixas */
       .dark-box {{
         background: #0b2e39; border: 1px solid #0e3a47; border-radius: 8px; padding: 10px 14px;
+      }}
+      /* tabelas */
+      .stDataFrame, .stTable, .stMarkdown, .stText {{
+        color: {HONEYDEW} !important;
       }}
     </style>
     """,
@@ -92,16 +120,45 @@ def run_exec(sql, params=None, many=False):
             cur.executemany(sql, params)
         else:
             cur.execute(sql, params)
-    # psycopg2 auto-commit under context
+
+# índices úteis (roda uma vez)
+@st.cache_resource(show_spinner=False)
+def ensure_indexes():
+    ddl = [
+        "CREATE INDEX IF NOT EXISTS idx_ac_empresa ON analise_credito(empresa)",
+        "CREATE INDEX IF NOT EXISTS idx_ac_agente  ON analise_credito(agente)",
+        "CREATE INDEX IF NOT EXISTS idx_pe_empresa ON pendencias_empresa(empresa)",
+        "CREATE INDEX IF NOT EXISTS idx_pe_status  ON pendencias_empresa(status)",
+        "CREATE INDEX IF NOT EXISTS idx_pe_doc     ON pendencias_empresa(documento)"
+    ]
+    for q in ddl:
+        try:
+            run_exec(q)
+        except Exception:
+            pass
+
+ensure_indexes()
 
 # =========================================================
 # LOGIN / SESSÃO
 # =========================================================
 USERS = {
-    # nome_visível: {senha, tipo, agente}
-    "Breno": {"senha": "Breno13", "tipo": "comercial", "agente": "Breno"},
-    "analista": {"senha": "1234", "tipo": "analista", "agente": None},
-    # adicione se quiser
+    # === COMERCIAIS ===
+    "gabriel":  {"senha": "Gabriel33",  "tipo": "comercial", "agente": "Gabriel"},
+    "marcelo":  {"senha": "Marcelo33",  "tipo": "comercial", "agente": "Marcelo"},
+    "lilian":   {"senha": "Lilian33",   "tipo": "comercial", "agente": "Lilian"},
+    "heverton": {"senha": "Heverton33", "tipo": "comercial", "agente": "Heverton"},
+    "moacir":   {"senha": "Moacir33",   "tipo": "comercial", "agente": "Moacir"},
+    "ellen":    {"senha": "Ellen33",    "tipo": "comercial", "agente": "Ellen"},
+    "jose":     {"senha": "Jose33",     "tipo": "comercial", "agente": "Jose"},
+    "sayonara": {"senha": "Sayonara33", "tipo": "comercial", "agente": "Sayonara"},
+    "joao":     {"senha": "Joao33",     "tipo": "comercial", "agente": "Joao"},
+    "breno":    {"senha": "Breno13",    "tipo": "comercial", "agente": "Breno"},
+    # === ANALISTAS ===
+    "leonardo": {"senha": "Leonardo13", "tipo": "analista", "agente": None},
+    "rafael":   {"senha": "Rafael13",   "tipo": "analista", "agente": None},
+    # conta genérica já usada por você
+    "analista": {"senha": "1234",       "tipo": "analista", "agente": None},
 }
 
 def login_box():
@@ -110,10 +167,11 @@ def login_box():
         u = st.text_input("Usuário")
         p = st.text_input("Senha", type="password")
         if st.button("Entrar", use_container_width=True):
-            if u in USERS and USERS[u]["senha"] == p:
-                st.session_state.user = u
-                st.session_state.tipo = USERS[u]["tipo"]
-                st.session_state.agente = USERS[u]["agente"]
+            key = (u or "").strip().lower()
+            if key in USERS and USERS[key]["senha"] == p:
+                st.session_state.user = key
+                st.session_state.tipo = USERS[key]["tipo"]
+                st.session_state.agente = USERS[key]["agente"]
                 st.rerun()
             else:
                 st.error("Usuário/senha inválidos")
@@ -128,6 +186,13 @@ if "user" not in st.session_state:
 # =========================================================
 SITUACOES = ["Em análise", "Aprovada", "Reprovada", "Stand by"]
 SIM_NAO = ["Não", "Sim"]
+
+def _norm_status(s):
+    """normaliza status de pendência para 'pendente' | 'recebido'."""
+    s = (s or "").strip().lower()
+    if s in ("recebido", "ok", "entregue", "sim", "true"):
+        return "recebido"
+    return "pendente"
 
 def ensure_pendencias_empresa(empresa):
     """Garante que existam registros na pendencias_empresa para todos os docs da dim_pendencias."""
@@ -217,16 +282,16 @@ def atualizar_campos_empresa(empresa, payload):
 
 def atualizar_pendencias(empresa, updates):
     """
-    updates: lista de tuplas (status, id)
+    updates: lista de tuplas (id, novo_status)
     """
-    if not updates: 
+    if not updates:
         return
     sql = """
        UPDATE pendencias_empresa
           SET status = %s, data_ultima_atualizacao = NOW()
         WHERE id = %s AND empresa = %s
     """
-    params = [(stt, pid, empresa) for (pid, stt) in updates]
+    params = [(_norm_status(stt), pid, empresa) for (pid, stt) in updates]
     run_exec(sql, params, many=True)
 
 # =========================================================
@@ -249,7 +314,7 @@ with colB:
 st.write("---")
 
 # =========================================================
-# OVERVIEW (Ambos)
+# OVERVIEW
 # =========================================================
 def overview(tipo, agente):
     filtro = agente if tipo == "comercial" else None
@@ -272,7 +337,9 @@ def overview(tipo, agente):
     empresa_escolhida = st.selectbox("", ["—"] + opts, index=0)
     if empresa_escolhida and empresa_escolhida != "—":
         st.markdown(f"**Pendências da empresa _{empresa_escolhida}_**")
-        dpend = pendencias_df(empresa_escolhida, apenas_pendentes=False)
+        # comercial: mostra só pendentes; analista: todas
+        only_pend = (tipo == "comercial")
+        dpend = pendencias_df(empresa_escolhida, apenas_pendentes=only_pend)
         st.dataframe(dpend, use_container_width=True, height=360)
 
 # =========================================================
@@ -309,26 +376,30 @@ def detalhada(tipo, agente):
     # Carrega dados atuais
     dados = run_query_df("SELECT * FROM analise_credito WHERE empresa = %s", (empresa,))
     if dados.empty:
-        st.warning("Empresa não encontrada.")
+        st.warning("Empresa não encontrado.")
         return
     row = dados.iloc[0].to_dict()
 
     st.markdown("### 🧰 Edição Completa" if tipo == "analista" else "### 📄 Detalhe da Empresa")
 
-    # Formulário (analista pode editar tudo; comercial só vê, com campos bloqueados)
+    # Formulário (analista pode editar tudo; comercial só vê)
     editable = (tipo == "analista")
     col1, col2, col3 = st.columns([0.33, 0.34, 0.33])
 
     with col1:
-        situacao = st.selectbox("Situação", SITUACOES, index=SITUACOES.index(row.get("situacao","Em análise")) if row.get("situacao") in SITUACOES else 0, disabled=not editable)
+        situacao = st.selectbox(
+            "Situação",
+            SITUACOES,
+            index=SITUACOES.index(row.get("situacao","Em análise")) if row.get("situacao") in SITUACOES else 0,
+            disabled=not editable
+        )
         limite = st.number_input("Limite (R$)", min_value=0.0, format="%.2f", value=float(row.get("limite") or 0), disabled=not editable)
-        saida_credito = st.text_input("Saída Crédito (YYYY-MM-DD)", value=row.get("saida_credito") or "", disabled=not editable)
+        saida_credito = st.text_input("Saída Crédito (YYYY-MM-DD)", value=(row.get("saida_credito") or ""), disabled=not editable)
 
     with col2:
         comentario_interno = st.text_area("Comentário Interno", value=row.get("comentario_interno") or "", height=120, disabled=not editable)
 
     with col3:
-        # Card de pendências
         pend_count = run_query_df(
             "SELECT COUNT(*) FROM pendencias_empresa WHERE empresa=%s AND status='pendente'",
             (empresa,)
@@ -360,35 +431,29 @@ def detalhada(tipo, agente):
     if tipo == "analista":
         st.caption("Marque **Recebido** quando o documento chegar.")
         ptable = pendencias_df(empresa, apenas_pendentes=False)
-        # Criamos uma cópia para edição de status
-        edit_status = []
-        for _, r in ptable.iterrows():
-            edit_status.append("Recebido" if r["status"] == "recebido" else "Pendente")
-
+        # Criamos uma cópia para edição de status (UX simples linha-a-linha)
         df_edit = ptable.copy()
-        df_edit["Status (editar)"] = edit_status
-
-        # Editor simples por linha
-        for idx in range(len(df_edit)):
+        # Linha editável
+        for i, r in df_edit.iterrows():
             c1, c2, c3, c4 = st.columns([0.08, 0.52, 0.2, 0.2])
-            c1.write(df_edit.loc[idx, "id"])
-            c2.write(df_edit.loc[idx, "documento"])
-            new_stat = c3.selectbox(
-                "Status", ["Pendente","Recebido"],
-                index=0 if df_edit.loc[idx, "Status (editar)"]=="Pendente" else 1,
-                key=f"pend_{empresa}_{df_edit.loc[idx,'id']}"
+            c1.write(int(r["id"]))
+            c2.write(r["documento"])
+            novo = c3.selectbox(
+                "Status",
+                ["Pendente","Recebido"],
+                index=(0 if r["status"]!="recebido" else 1),
+                key=f"pend_{empresa}_{int(r['id'])}"
             )
-            c4.write(df_edit.loc[idx, "data_ultima_atualizacao"])
-            df_edit.loc[idx, "Status (editar)"] = new_stat
+            c4.write(r["data_ultima_atualizacao"])
+            df_edit.loc[i, "status"] = "recebido" if novo == "Recebido" else "pendente"
 
         if st.button("💾 Salvar pendências", use_container_width=True, type="primary"):
             ups = []
             for i, r in df_edit.iterrows():
-                novo = "pendente" if r["Status (editar)"] == "Pendente" else "recebido"
-                if novo != ptable.loc[i, "status"]:
-                    ups.append((r["id"], novo))
+                if r["status"] != ptable.loc[i,"status"]:
+                    ups.append( (int(r["id"]), r["status"]) )
             if ups:
-                atualizar_pendencias(empresa, [(pid, stt) for (pid, stt) in ups])
+                atualizar_pendencias(empresa, ups)
                 st.success("Pendências atualizadas!")
                 st.rerun()
             else:
@@ -396,7 +461,7 @@ def detalhada(tipo, agente):
     else:
         # Comercial: somente leitura
         st.caption("Visualização somente leitura")
-        dpend = pendencias_df(empresa, apenas_pendentes=False)
+        dpend = pendencias_df(empresa, apenas_pendentes=True)  # comercial vê só o que falta
         st.dataframe(dpend, use_container_width=True, height=360)
 
     # SALVAR CAMPOS PRINCIPAIS (Analista)
