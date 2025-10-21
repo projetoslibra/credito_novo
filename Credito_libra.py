@@ -23,19 +23,19 @@ st.set_page_config(
 # HEADER
 # =========================================================
 def header():
-    col1, col2 = st.columns([0.15, 0.85])
-    with col1:
-        st.image("imagens/Capital-branca.png", width=150)
-    with col2:
-        st.markdown(
-            f"""
-            <div style="
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                height: 100%;
-                padding-top: 10px;
-            ">
+    st.markdown(
+        f"""
+        <div style="
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.2rem;
+            height: 90px;
+            max-width: 1000px;
+            margin: 0 auto;
+        ">
+            <img src="imagens/Capital-branca.png" width="150" style="margin-top: 0;">
+            <div style="display: flex; flex-direction: column; justify-content: center;">
                 <span style="
                     color:{HONEYDEW};
                     font-size:1.9rem;
@@ -54,9 +54,10 @@ def header():
                     | Análise de Crédito
                 </span>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # =========================================================
 # CSS (tema escuro fixo + refinado)
