@@ -299,16 +299,24 @@ def tabela_status_empresas(filtro_agente=None):
     if filtro_agente:
         where = "WHERE ac.agente = %s"
         params = [filtro_agente]
+
     sql = f"""
-    SELECT ac.empresa, ac.agente, ac.entrada, ac.situacao,
+    SELECT ac.empresa,
+           ac.agente,
+           TO_CHAR(ac.entrada,'DD/MM/YYYY') AS entrada,   -- 👈 aqui
+           ac.situacao,
            COALESCE(ac.limite,0) AS limite,
-           CASE WHEN ac.saida_credito IS NOT NULL THEN TO_CHAR(ac.saida_credito,'YYYY-MM-DD') ELSE 'Não' END AS saida_credito,
-           (SELECT COUNT(*) FROM pendencias_empresa p WHERE p.empresa = ac.empresa AND p.status='pendente') AS pendentes_restantes
+           CASE WHEN ac.saida_credito IS NOT NULL THEN TO_CHAR(ac.saida_credito,'DD/MM/YYYY') ELSE 'Não' END AS saida_credito, -- opcional
+           (SELECT COUNT(*) FROM pendencias_empresa p
+            WHERE p.empresa = ac.empresa AND p.status='pendente') AS pendentes_restantes
     FROM analise_credito ac
     {where}
     ORDER BY ac.entrada DESC, ac.empresa;
     """
+
     return run_query_df(sql, params)
+
+
 
 def pendencias_df(empresa, apenas_pendentes=False):
     sql = """
