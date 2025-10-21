@@ -22,36 +22,43 @@ st.set_page_config(
 # =========================================================
 # SIDEBAR (Logo + saudação com hover)
 # =========================================================
-with st.sidebar:
-    st.markdown(
-        f"""
-        <style>
-        .logo-hover {{
-            transition: all 0.3s ease-in-out;
-            filter: drop-shadow(0px 0px 8px rgba(198,99,0,0.4));
-        }}
-        .logo-hover:hover {{
-            transform: scale(1.06);
-            filter: drop-shadow(0px 0px 12px rgba(198,99,0,0.6));
-        }}
-        </style>
+def sidebar_content():
+    with st.sidebar:
+        st.markdown(
+            f"""
+            <style>
+            .logo-hover {{
+                transition: all 0.3s ease-in-out;
+                filter: drop-shadow(0px 0px 8px rgba(198,99,0,0.4));
+                cursor: pointer;
+            }}
+            .logo-hover:hover {{
+                transform: scale(1.06);
+                filter: drop-shadow(0px 0px 12px rgba(198,99,0,0.7));
+            }}
+            </style>
 
-        <div style="
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            justify-content:center;
-            margin-top:10px;
-            margin-bottom:15px;">
-            <img src='imagens/Capital-branca.png' class='logo-hover' width='150'>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            <div style="
+                display:flex;
+                flex-direction:column;
+                align-items:center;
+                justify-content:center;
+                margin-top:10px;
+                margin-bottom:15px;">
+                <img src="https://raw.githubusercontent.com/juancarneirolibra/assets/main/Capital-branca.png" class="logo-hover" width="150">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
-    st.success("Olá, analista (analista)")
-    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+
+        # Só mostra saudação se já estiver logado
+        if "user" in st.session_state:
+            nome = st.session_state.get("user", "").capitalize()
+            tipo = st.session_state.get("tipo", "")
+            st.success(f"Olá, **{nome}** ({tipo})")
+            st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
 # =========================================================
 # HEADER CENTRALIZADO
