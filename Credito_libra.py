@@ -23,20 +23,20 @@ st.set_page_config(
 # HEADER
 # =========================================================
 def header():
-    st.markdown(
-        f"""
-        <div style="
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.8rem;
-            padding-top: 30px;         /* empurra pra baixo */
-            padding-bottom: 25px;      /* dá respiro antes dos botões */
-        ">
-            <img src="imagens/Capital-branca.png"
-                 width="95"
-                 style="margin-bottom: 4px;"/>
-            <div style="text-align: left;">
+    col1, col2 = st.columns([0.1, 0.9])
+
+    with col1:
+        st.image("imagens/Capital-branca.png", width=90)
+
+    with col2:
+        st.markdown(
+            f"""
+            <div style='
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                padding-top: 25px;
+            '>
                 <span style='
                     color:{HONEYDEW};
                     font-size: 1.8rem;
@@ -45,6 +45,7 @@ def header():
                     border-bottom: 2px solid {HARVEST_GOLD}80;
                     padding-bottom: 0.1em;
                     line-height: 1.15;
+                    display:inline-block;
                 '>
                     LIBRA CAPITAL
                 </span>
@@ -56,11 +57,11 @@ def header():
                     | Análise de Crédito
                 </span>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            """,
+            unsafe_allow_html=True
+        )
 
+    
     # espaço entre header e botões
     st.markdown("<div style='margin-bottom: 1.8rem;'></div>", unsafe_allow_html=True) 
 
