@@ -24,30 +24,34 @@ st.set_page_config(
 # =========================================================
 def header():
     with st.container():
-        cols = st.columns([0.095, 0.905])
+        # proporção ajustada pra encaixar perfeitamente
+        cols = st.columns([0.10, 0.90])
         with cols[0]:
-            st.image("imagens/Capital-branca.png", width=120)
+            st.image("imagens/Capital-branca.png", width=125)
         with cols[1]:
             st.markdown(
                 f"""
-                <span style='
-                    color: {HONEYDEW};
-                    font-size: 2.1rem;
-                    font-weight:900;
-                    letter-spacing:0.03em;
-                    border-bottom: 2px solid {HARVEST_GOLD}66;
-                    padding-bottom: 0.12em;
-                    line-height: 1.14;
-                    '>
-                    LIBRA CAPITAL
-                    <span style='font-weight:400;color:{HARVEST_GOLD};'>| Análise de Crédito</span>
-                </span>
+                <div style='padding-top: 10px;'>
+                    <span style='
+                        color: {HONEYDEW};
+                        font-size: 2.1rem;
+                        font-weight:900;
+                        letter-spacing:0.03em;
+                        border-bottom: 2px solid {HARVEST_GOLD}99;
+                        padding-bottom: 0.15em;
+                        line-height: 1.14;
+                        display:inline-block;
+                        '>
+                        LIBRA CAPITAL
+                        <span style='font-weight:400;color:{HARVEST_GOLD};'>| Análise de Crédito</span>
+                    </span>
+                </div>
                 """,
                 unsafe_allow_html=True
             )
 
-    # espaçamento abaixo do header
-    st.markdown('<br/>', unsafe_allow_html=True)
+    # Espaço inferior (afasta do topo)
+    st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
 
 # =========================================================
 # CSS (tema escuro fixo + refinado)
