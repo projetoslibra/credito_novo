@@ -23,47 +23,40 @@ st.set_page_config(
 # HEADER
 # =========================================================
 def header():
-    with st.container():
-        cols = st.columns([0.18, 0.82])
-        with cols[0]:
-            # aumenta um pouco a altura do espaço da logo pra evitar corte
-            st.markdown("<div style='height:85px;'></div>", unsafe_allow_html=True)
-            st.image(
-                "imagens/Capital-branca.png",
-                width=150,
-                output_format="PNG"
-            )
-        with cols[1]:
-            st.markdown(
-                f"""
-                <div style="
-                    display:inline-flex;
-                    align-items:center;
-                    gap:.6rem;
+    st.markdown(
+        f"""
+        <div style="
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 1.2rem;
+            height: 95px;
+            padding: 0 1rem;
+        ">
+            <img src="imagens/Capital-branca.png" width="150" style="margin-top: 0;">
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <span style="
+                    color:{HONEYDEW};
+                    font-size:1.9rem;
+                    font-weight:900;
                     line-height:1.2;
-                    padding-bottom:.2rem;
-                    border-bottom:2px solid {HARVEST_GOLD}99;
-                    width: fit-content;  /* impede a linha de ir até o fim */
-                    margin-top:12px;     /* alinha com a logo */
                 ">
-                    <span style="
-                        color:{HONEYDEW};
-                        font-size:1.9rem;
-                        font-weight:900;
-                    ">
-                        LIBRA CAPITAL
-                    </span>
-                    <span style="
-                        color:{HARVEST_GOLD};
-                        font-size:1.5rem;
-                        font-weight:400;
-                    ">
-                        | Análise de Crédito
-                    </span>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                    LIBRA CAPITAL
+                </span>
+                <span style="
+                    color:{HARVEST_GOLD};
+                    font-size:1.5rem;
+                    font-weight:400;
+                    border-bottom:2px solid {HARVEST_GOLD}99;
+                    width: fit-content;
+                ">
+                    | Análise de Crédito
+                </span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # =========================================================
 # CSS (tema escuro fixo + refinado)
