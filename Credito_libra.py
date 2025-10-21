@@ -24,37 +24,41 @@ st.set_page_config(
 # =========================================================
 def header():
     with st.container():
-        cols = st.columns([0.15, 0.85])
+        # um pouco mais de espaço para a logo
+        cols = st.columns([0.18, 0.82])
         with cols[0]:
             st.image(
                 "imagens/Capital-branca.png",
-                width=130,
+                width=160,
                 output_format="PNG"
             )
         with cols[1]:
             st.markdown(
                 f"""
                 <div style="
-                    display:flex;
-                    align-items:center;
-                    height:90px;
-                    gap:.6rem;
-                    line-height:1.1;
-                    padding-bottom:.2rem;">
-                  <div style="border-bottom:2px solid {HARVEST_GOLD}99; display:inline-block; padding-bottom:.25rem;">
+                    display: inline-flex;
+                    align-items: flex-end;
+                    gap: .6rem;
+                    line-height: 1.2;
+                    height: 80px;
+                    border-bottom: 2px solid {HARVEST_GOLD}99;
+                    width: fit-content;
+                    padding-bottom: .2rem;
+                ">
                     <span style="
-                        color:{HONEYDEW};
-                        font-size:1.9rem;
-                        font-weight:900;">
+                        color: {HONEYDEW};
+                        font-size: 1.9rem;
+                        font-weight: 900;
+                    ">
                         LIBRA CAPITAL
                     </span>
                     <span style="
-                        color:{HARVEST_GOLD};
-                        font-size:1.5rem;
-                        font-weight:400;">
+                        color: {HARVEST_GOLD};
+                        font-size: 1.5rem;
+                        font-weight: 400;
+                    ">
                         | Análise de Crédito
                     </span>
-                  </div>
                 </div>
                 """,
                 unsafe_allow_html=True
