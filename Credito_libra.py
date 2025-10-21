@@ -23,13 +23,12 @@ st.set_page_config(
 # HEADER
 # =========================================================
 def header():
-    # header responsivo sem corte nem sobreposição
     with st.container():
-        cols = st.columns([0.15, 0.85])
+        cols = st.columns([0.14, 0.86])
         with cols[0]:
             st.image(
                 "imagens/Capital-branca.png",
-                width=150,
+                width=140,
                 output_format="PNG"
             )
         with cols[1]:
@@ -37,21 +36,24 @@ def header():
                 f"""
                 <div style="
                     display:flex;
-                    align-items:flex-end;
-                    gap:.5rem;
-                    line-height:1.1;
-                    padding-bottom:.35rem;
+                    align-items:center;
+                    height:75px;
+                    gap:.7rem;
+                    line-height:1.2;
+                    padding-bottom:.3rem;
                     border-bottom:2px solid {HARVEST_GOLD}99;">
                   <span style="
                     color:{HONEYDEW};
                     font-size:1.9rem;
-                    font-weight:900;">
+                    font-weight:900;
+                    margin-top:4px;">
                     LIBRA CAPITAL
                   </span>
                   <span style="
                     color:{HARVEST_GOLD};
                     font-size:1.5rem;
-                    font-weight:400;">
+                    font-weight:400;
+                    margin-top:5px;">
                     | Análise de Crédito
                   </span>
                 </div>
