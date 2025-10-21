@@ -27,14 +27,14 @@ def header():
         f"""
         <div style="
             display: flex;
-            justify-content: center;
             align-items: center;
-            gap: 1.2rem;
+            justify-content: flex-start;
+            gap: 1rem;
             height: 90px;
-            max-width: 1000px;
-            margin: 0 auto;
+            padding-left: 2rem;
+            margin-top: 0.5rem;
         ">
-            <img src="imagens/Capital-branca.png" width="150" style="margin-top: 0;">
+            <img src="imagens/Capital-branca.png" width="130" style="margin-top: 0;">
             <div style="display: flex; flex-direction: column; justify-content: center;">
                 <span style="
                     color:{HONEYDEW};
