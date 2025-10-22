@@ -204,12 +204,12 @@ USERS = {
     "jose":     {"senha": "Jose33",     "tipo": "comercial", "agente": "Jose"},
     "sayonara": {"senha": "Sayonara33", "tipo": "comercial", "agente": "Sayonara"},
     "joao":     {"senha": "Joao33",     "tipo": "comercial", "agente": "Joao"},
-    "breno":    {"senha": "Breno13",    "tipo": "comercial", "agente": "Breno"},
+    "Andressa":    {"senha": "Andressa33",    "tipo": "comercial", "agente": "Breno"},
     # === ANALISTAS ===
     "leonardo": {"senha": "Leonardo13", "tipo": "analista", "agente": None},
     "rafael":   {"senha": "Rafael13",   "tipo": "analista", "agente": None},
     # conta genérica já usada por você
-    "analista": {"senha": "1234",       "tipo": "analista", "agente": None},
+    "Breno": {"senha": "Breno13",       "tipo": "analista", "agente": None},
 }
 
 def login_box():
