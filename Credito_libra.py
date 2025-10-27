@@ -453,7 +453,7 @@ def detalhada(tipo, agente):
             disabled=not editable
         )
         limite = st.number_input("Limite (R$)", min_value=0.0, format="%.2f", value=float(row.get("limite") or 0), disabled=not editable)
-        saida_credito = st.text_input("Saída Crédito (YYYY-MM-DD)", value=(row.get("saida_credito") or ""), disabled=not editable)
+        saida_credito = st.text_input("Saída Crédito (DD-MM-YYYY)", value=(row.get("saida_credito") or ""), disabled=not editable)
 
     with col2:
         comentario_interno = st.text_area("Comentário Interno", value=row.get("comentario_interno") or "", height=120, disabled=not editable)
@@ -556,6 +556,36 @@ def detalhada(tipo, agente):
         except Exception as e:
             st.error(f"Erro ao salvar no banco: {e}")
 
+    # =========================================================
+    # 🗑️ BOTÃO DE EXCLUSÃO (somente analistas)
+    # =========================================================
+    if tipo == "analista":
+        st.markdown("---")
+        st.warning("⚠️ Esta ação é irreversível. Confirme antes de excluir a empresa.", icon="⚠️")
+
+        # Passo 1 — checkbox de confirmação
+        confirmar = st.checkbox(f"Confirmo que desejo excluir permanentemente '{empresa}'")
+
+        # Passo 2 — botão de exclusão só ativa se confirmado
+        st.markdown("")  # espaçamento visual
+        if confirmar:
+            if st.button(f"🗑️ Excluir empresa '{empresa}'", type="secondary", use_container_width=True):
+                try:
+                    sql = """
+                    BEGIN;
+                    DELETE FROM pendencias_empresa WHERE empresa = %s;
+                    DELETE FROM analise_credito WHERE empresa = %s;
+                    COMMIT;
+                    """
+                    run_exec(sql, (empresa, empresa))
+                    st.success(f"✅ Empresa '{empresa}' e suas pendências foram removidas com sucesso!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao excluir empresa: {e}")
+        else:
+            st.info("Marque a caixa de confirmação para habilitar o botão de exclusão.")
+
+        
 # =========================================================
 # ROTEAMENTO
 # =========================================================
