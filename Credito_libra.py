@@ -363,13 +363,21 @@ def atualizar_pendencias(empresa, updates):
     run_exec(sql, params, many=True)
 
 def calcular_status_prazo(data_str_ddmmyyyy, prazo_dias):
-    if not data_str_ddmmyyyy or not prazo_dias:
+    if not data_str_ddmmyyyy or prazo_dias in [None, "", " ", 0]:
         return "Sem prazo"
+    try:
+        prazo_int = int(float(prazo_dias)) if str(prazo_dias).strip() else 0
+    except ValueError:
+        prazo_int = 0
+    if prazo_int <= 0:
+        return "Sem prazo"
+
     try:
         dt = datetime.strptime(data_str_ddmmyyyy, "%d/%m/%Y")
     except Exception:
         return "Sem prazo"
-    limite = pd.Timestamp(dt) + pd.Timedelta(days=int(prazo_dias))
+
+    limite = pd.Timestamp(dt) + pd.Timedelta(days=prazo_int)
     if hasattr(limite, "to_pydatetime"):
         limite = limite.to_pydatetime()
     return "Atrasado" if datetime.now() > limite else "Dentro do prazo"
