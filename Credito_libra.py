@@ -6,7 +6,7 @@ import psycopg2.extras as pg_extras
 from datetime import date, datetime
 
 # =========================================================
-# PALETA / ESTILO
+# 🎨 PALETA / ESTILO
 # =========================================================
 SPACE_CADET = "#042F3C"
 HARVEST_GOLD = "#C66300"
@@ -20,7 +20,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# SIDEBAR (Logo + saudação com hover)
+# 🧭 SIDEBAR (Logo + saudação)
 # =========================================================
 def sidebar_content():
     with st.sidebar:
@@ -53,15 +53,15 @@ def sidebar_content():
 
         st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
-        # Só mostra saudação se já estiver logado
         if "user" in st.session_state:
             nome = st.session_state.get("user", "").capitalize()
             tipo = st.session_state.get("tipo", "")
             st.success(f"Olá, **{nome}** ({tipo})")
             st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
+
 # =========================================================
-# HEADER CENTRALIZADO
+# 🏷 HEADER CENTRALIZADO
 # =========================================================
 def header():
     st.markdown(
@@ -81,26 +81,18 @@ def header():
                 letter-spacing:0.02em;
                 border-bottom: 2px solid {HARVEST_GOLD}80;
                 padding-bottom: 0.1em;
-                line-height: 1.15;
                 text-shadow: 0px 0px 8px rgba(255,255,255,0.1);
-            '>
-                LIBRA CAPITAL
-            </span>
-            <span style='
-                font-weight:400;
-                color:{HARVEST_GOLD};
-                font-size: 1.3rem;
-            '>
-                | Análise de Crédito
-            </span>
+            '>LIBRA CAPITAL</span>
+            <span style='font-weight:400; color:{HARVEST_GOLD}; font-size: 1.3rem;'>| Análise de Crédito</span>
         </div>
         """,
         unsafe_allow_html=True
     )
-    st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True) 
+    st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
+
 
 # =========================================================
-# CSS (tema escuro fixo + refinado)
+# 🌑 CSS GLOBAL
 # =========================================================
 st.markdown(
     f"""
@@ -111,17 +103,6 @@ st.markdown(
       }}
       * {{ color-scheme: dark !important; }}
       .block-container {{ padding-top: 1.2rem; }}
-      .stTabs [data-baseweb="tab-list"] button {{
-        background: {HARVEST_GOLD};
-        color: white !important;
-        border-radius: 6px;
-        margin-right: 6px;
-        font-weight: 600;
-      }}
-      .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {{
-        background: {HARVEST_GOLD}cc;
-        border-bottom: 2px solid white;
-      }}
       .kpi-card {{
         background: {HARVEST_GOLD}22;
         border: 1px solid {HARVEST_GOLD}55;
@@ -130,14 +111,8 @@ st.markdown(
       }}
       .kpi-card h3 {{ margin: 0; font-size: 1.7rem; color: {HONEYDEW}; }}
       .kpi-card span {{ font-size: .9rem; color: {SLATE_GRAY}; }}
-      .dark-box {{
-        background: #0b2e39; border: 1px solid #0e3a47; border-radius: 8px; padding: 10px 14px;
-      }}
       .stDataFrame, .stTable, .stMarkdown, .stText {{
         color: {HONEYDEW} !important;
-      }}
-      [data-testid="stAppViewBlockContainer"] {{
-        background-color: #061e26 !important;
       }}
     </style>
     """,
@@ -145,7 +120,7 @@ st.markdown(
 )
 
 # =========================================================
-# DB
+# 🗄️ BANCO DE DADOS
 # =========================================================
 DB_CONFIG = {
     "host": st.secrets["db_host"],
@@ -161,8 +136,7 @@ def get_conn():
 
 def run_query_df(sql, params=None):
     conn = get_conn()
-    df = pd.read_sql(sql, conn, params=params)
-    return df
+    return pd.read_sql(sql, conn, params=params)
 
 def run_exec(sql, params=None, many=False):
     conn = get_conn()
@@ -171,6 +145,7 @@ def run_exec(sql, params=None, many=False):
             cur.executemany(sql, params)
         else:
             cur.execute(sql, params)
+    conn.commit()
 
 # índices úteis (roda uma vez)
 @st.cache_resource(show_spinner=False)
@@ -187,11 +162,27 @@ def ensure_indexes():
             run_exec(q)
         except Exception:
             pass
-
 ensure_indexes()
 
+def registrar_transicao(empresa, nova_etapa, novo_responsavel, prazo_dias):
+    """Registra transição de etapa e atualiza status atual."""
+    try:
+        run_exec("""
+            INSERT INTO log_workflow (empresa, etapa, responsavel, prazo_dias)
+            VALUES (%s, %s, %s, %s);
+        """, (empresa, nova_etapa, novo_responsavel, prazo_dias))
+        run_exec("""
+            UPDATE analise_credito
+               SET etapa_atual = %s,
+                   responsavel_atual = %s,
+                   data_ultima_movimentacao = NOW()
+             WHERE empresa = %s;
+        """, (nova_etapa, novo_responsavel, empresa))
+    except Exception as e:
+        st.error(f"Erro ao registrar transição: {e}")
+
 # =========================================================
-# LOGIN / SESSÃO
+# 🔐 LOGIN / SESSÃO
 # =========================================================
 USERS = {
     # === COMERCIAIS ===
@@ -205,11 +196,10 @@ USERS = {
     "sayonara": {"senha": "Sayonara33", "tipo": "comercial", "agente": "Sayonara"},
     "joao":     {"senha": "Joao33",     "tipo": "comercial", "agente": "Joao"},
     "andressa": {"senha": "Andressa33", "tipo": "comercial", "agente": "Andressa"},
-    # === ANALISTAS ===
+    # === ANALISTAS / LIDERANÇA ===
     "leonardo": {"senha": "Leonardo13", "tipo": "Diretor", "agente": None},
     "rafael":   {"senha": "Rafael13",   "tipo": "analista", "agente": None},
-    # conta genérica já usada por você
-    "breno": {"senha": "Breno13", "tipo": "CEO", "agente": None},
+    "breno":    {"senha": "Breno13",    "tipo": "CEO", "agente": None},
 }
 
 def login_box():
@@ -233,33 +223,27 @@ if "user" not in st.session_state:
     st.stop()
 
 # =========================================================
-# HELPERS DE NEGÓCIO
+# ⚙️ FUNÇÕES DE NEGÓCIO
 # =========================================================
 SITUACOES = ["Em análise", "Aprovada", "Reprovada", "Stand by"]
 SIM_NAO = ["Não", "Sim"]
 
 def _norm_status(s):
-    """normaliza status de pendência para 'pendente' | 'recebido'."""
     s = (s or "").strip().lower()
-    if s in ("recebido", "ok", "entregue", "sim", "true"):
-        return "recebido"
-    return "pendente"
+    return "recebido" if s in ("recebido", "ok", "entregue", "sim", "true") else "pendente"
 
 def ensure_pendencias_empresa(empresa):
-    """Garante que existam registros na pendencias_empresa para todos os docs da dim_pendencias."""
-    sql = """
-    INSERT INTO pendencias_empresa (empresa, documento, status, data_ultima_atualizacao)
-    SELECT %s, d.documento, 'pendente', NOW()
-    FROM dim_pendencias d
-    WHERE NOT EXISTS (
-        SELECT 1 FROM pendencias_empresa pe
-        WHERE pe.empresa = %s AND pe.documento = d.documento
-    );
-    """
-    run_exec(sql, (empresa, empresa))
+    run_exec("""
+        INSERT INTO pendencias_empresa (empresa, documento, status, data_ultima_atualizacao)
+        SELECT %s, d.documento, 'pendente', NOW()
+        FROM dim_pendencias d
+        WHERE NOT EXISTS (
+            SELECT 1 FROM pendencias_empresa pe
+            WHERE pe.empresa = %s AND pe.documento = d.documento
+        );
+    """, (empresa, empresa))
 
 def seed_empresa_if_missing(empresa, agente):
-    """Cria empresa em analise_credito se não existir + cria pendências padrão."""
     run_exec("""
         INSERT INTO analise_credito (empresa, agente, entrada, situacao)
         SELECT %s, %s, CURRENT_DATE, 'Em análise'
@@ -282,7 +266,7 @@ def conta_kpis(filtro_agente=None):
         where += " AND agente = %s"
         params.append(filtro_agente)
     tot_emp = run_query_df(f"SELECT COUNT(*) FROM analise_credito {where}", params).iloc[0,0]
-    aprov = run_query_df(f"SELECT COUNT(*) FROM analise_credito {where} AND situacao='Aprovada'", params).iloc[0,0]
+    aprov  = run_query_df(f"SELECT COUNT(*) FROM analise_credito {where} AND situacao='Aprovada'", params).iloc[0,0]
     reprov = run_query_df(f"SELECT COUNT(*) FROM analise_credito {where} AND situacao='Reprovada'", params).iloc[0,0]
 
     where_p = "WHERE 1=1"
@@ -294,36 +278,38 @@ def conta_kpis(filtro_agente=None):
     return tot_emp, aprov, reprov, pend
 
 def tabela_status_empresas(filtro_agente=None):
-    where = ""
-    params = []
+    where, params = "", []
     if filtro_agente:
         where = "WHERE ac.agente = %s"
         params = [filtro_agente]
-
+    # inclui prazo atual (último do log) via subselect
     sql = f"""
-    SELECT ac.empresa,
-           ac.agente,
-           TO_CHAR(ac.entrada,'DD/MM/YYYY') AS entrada,   -- 👈 aqui
-           ac.situacao,
-           COALESCE(ac.limite,0) AS limite,
-           CASE WHEN ac.saida_credito IS NOT NULL THEN TO_CHAR(ac.saida_credito,'DD/MM/YYYY') ELSE 'Não' END AS saida_credito, -- opcional
-           (SELECT COUNT(*) FROM pendencias_empresa p
-            WHERE p.empresa = ac.empresa AND p.status='pendente') AS pendentes_restantes
+    SELECT
+        ac.empresa,
+        ac.agente,
+        TO_CHAR(ac.entrada,'DD/MM/YYYY') AS entrada,
+        ac.situacao,
+        COALESCE(ac.limite,0) AS limite,
+        ac.etapa_atual,
+        ac.responsavel_atual,
+        TO_CHAR(ac.data_ultima_movimentacao,'DD/MM/YYYY') AS ultima_movimentacao,
+        (SELECT prazo_dias
+           FROM log_workflow lw
+          WHERE lw.empresa = ac.empresa
+          ORDER BY lw.created_at DESC
+          LIMIT 1) AS prazo_dias,
+        (SELECT COUNT(*)
+           FROM pendencias_empresa p
+          WHERE p.empresa = ac.empresa
+            AND p.status='pendente') AS pendentes_restantes
     FROM analise_credito ac
     {where}
     ORDER BY ac.entrada DESC, ac.empresa;
     """
-
     return run_query_df(sql, params)
 
-
-
 def pendencias_df(empresa, apenas_pendentes=False):
-    sql = """
-        SELECT id, documento, status, data_ultima_atualizacao
-        FROM pendencias_empresa
-        WHERE empresa = %s
-    """
+    sql = "SELECT id, documento, status, data_ultima_atualizacao FROM pendencias_empresa WHERE empresa = %s"
     params = [empresa]
     if apenas_pendentes:
         sql += " AND status='pendente'"
@@ -331,8 +317,7 @@ def pendencias_df(empresa, apenas_pendentes=False):
     return run_query_df(sql, params)
 
 def atualizar_campos_empresa(empresa, payload):
-    sets = []
-    params = []
+    sets, params = [], []
     for col, val in payload.items():
         sets.append(f"{col} = %s")
         params.append(val)
@@ -340,9 +325,6 @@ def atualizar_campos_empresa(empresa, payload):
     run_exec(f"UPDATE analise_credito SET {', '.join(sets)} WHERE empresa = %s", params)
 
 def atualizar_pendencias(empresa, updates):
-    """
-    updates: lista de tuplas (id, novo_status)
-    """
     if not updates:
         return
     sql = """
@@ -353,11 +335,21 @@ def atualizar_pendencias(empresa, updates):
     params = [(_norm_status(stt), pid, empresa) for (pid, stt) in updates]
     run_exec(sql, params, many=True)
 
+def calcular_status_prazo(data_str_ddmmyyyy, prazo_dias):
+    if not data_str_ddmmyyyy or not prazo_dias:
+        return "Sem prazo"
+    try:
+        dt = datetime.strptime(data_str_ddmmyyyy, "%d/%m/%Y")
+    except Exception:
+        return "Sem prazo"
+    limite = dt + pd.Timedelta(days=int(prazo_dias))
+    return "Atrasado" if datetime.now() > limite.to_pydatetime() else "Dentro do prazo"
+
 # =========================================================
-# UI – HEADER + Tabs
+# 📊 INTERFACE
 # =========================================================
 header()
-st.sidebar.success(f"Olá, **{st.session_state.user}** ({st.session_state.tipo})")
+sidebar_content()
 
 if "tab" not in st.session_state:
     st.session_state.tab = "Overview"
@@ -388,15 +380,30 @@ def overview(tipo, agente):
 
     st.markdown("#### Status das empresas")
     df = tabela_status_empresas(filtro)
-    st.dataframe(df, use_container_width=True, height=280)
+
+    # Calcula status de prazo (com base na última movimentação + prazo_dias do log)
+    if not df.empty:
+        df = df.copy()
+        df["status_prazo"] = df.apply(
+            lambda r: calcular_status_prazo(r.get("ultima_movimentacao"), r.get("prazo_dias")),
+            axis=1
+        )
+
+    # Visual diferente por perfil
+    if tipo != "comercial":
+        st.caption("📌 Exibindo etapa, responsável, prazo e status de prazo")
+        cols = ["empresa","agente","situacao","etapa_atual","responsavel_atual","prazo_dias","status_prazo","ultima_movimentacao","pendentes_restantes"]
+        show_cols = [c for c in cols if c in df.columns]
+        st.dataframe(df[show_cols], use_container_width=True, height=300)
+    else:
+        st.dataframe(df[["empresa","agente","situacao","entrada"]], use_container_width=True, height=300)
 
     # Detalhe de pendências por empresa (somente leitura)
     st.markdown("#### Selecione uma empresa para ver as pendências:")
-    opts = df["empresa"].tolist()
+    opts = df["empresa"].tolist() if not df.empty else []
     empresa_escolhida = st.selectbox("", ["—"] + opts, index=0)
     if empresa_escolhida and empresa_escolhida != "—":
         st.markdown(f"**Pendências da empresa _{empresa_escolhida}_**")
-        # comercial: mostra só pendentes; analista: todas
         only_pend = (tipo == "comercial")
         dpend = pendencias_df(empresa_escolhida, apenas_pendentes=only_pend)
         st.dataframe(dpend, use_container_width=True, height=360)
@@ -405,7 +412,7 @@ def overview(tipo, agente):
 # DETALHADA
 # =========================================================
 def detalhada(tipo, agente):
-    # Comercial pode cadastrar empresa (opcional)
+    # Comercial pode cadastrar empresa
     if tipo == "comercial":
         with st.expander("➕ Cadastrar nova empresa", expanded=False):
             c1, c2 = st.columns([0.6, 0.4])
@@ -416,33 +423,35 @@ def detalhada(tipo, agente):
             if st.button("Cadastrar empresa", type="primary"):
                 if nova_emp.strip():
                     seed_empresa_if_missing(nova_emp.strip(), agente)
-                    st.success("Empresa cadastrada!")
+                    # starta o fluxo marcando pendência de posicionamento
+                    registrar_transicao(nova_emp.strip(), "Pendência de Posicionamento", "Analista", 1)
+                    st.success("Empresa cadastrada e fluxo iniciado!")
                     st.rerun()
                 else:
                     st.warning("Informe o nome da empresa.")
 
-    # Escolha da empresa para edição/visualização
-    df = tabela_status_empresas(None if tipo == "analista" else agente)
+    # Escolha da empresa
+    df = tabela_status_empresas(None if tipo != "comercial" else agente)
     if df.empty:
         st.info("Sem empresas para exibir.")
         return
 
     empresa = st.selectbox("Escolha a empresa:", df["empresa"].tolist())
 
-    # Busca registro principal + garantimos pendências base
+    # Garante pendências base
     ensure_pendencias_empresa(empresa)
 
     # Carrega dados atuais
     dados = run_query_df("SELECT * FROM analise_credito WHERE empresa = %s", (empresa,))
     if dados.empty:
-        st.warning("Empresa não encontrado.")
+        st.warning("Empresa não encontrada.")
         return
     row = dados.iloc[0].to_dict()
 
-    st.markdown("### 🧰 Edição Completa" if tipo == "analista" else "### 📄 Detalhe da Empresa")
+    st.markdown("### 🧰 Edição Completa" if tipo != "comercial" else "### 📄 Detalhe da Empresa")
 
-    # Formulário (analista pode editar tudo; comercial só vê)
-    editable = (tipo == "analista")
+    # Formulário (analista pode editar; comercial só vê)
+    editable = (tipo in ["analista", "Diretor", "CEO"])
     col1, col2, col3 = st.columns([0.33, 0.34, 0.33])
 
     with col1:
@@ -487,23 +496,21 @@ def detalhada(tipo, agente):
 
     # PENDÊNCIAS
     st.markdown("### 📎 Pendências")
-    if tipo == "analista":
+    if editable:
         st.caption("Marque **Recebido** quando o documento chegar.")
         ptable = pendencias_df(empresa, apenas_pendentes=False)
-        # Criamos uma cópia para edição de status (UX simples linha-a-linha)
         df_edit = ptable.copy()
-        # Linha editável
         for i, r in df_edit.iterrows():
-            c1, c2, c3, c4 = st.columns([0.08, 0.52, 0.2, 0.2])
-            c1.write(int(r["id"]))
-            c2.write(r["documento"])
-            novo = c3.selectbox(
+            c1x, c2x, c3x, c4x = st.columns([0.08, 0.52, 0.2, 0.2])
+            c1x.write(int(r["id"]))
+            c2x.write(r["documento"])
+            novo = c3x.selectbox(
                 "Status",
                 ["Pendente","Recebido"],
                 index=(0 if r["status"]!="recebido" else 1),
                 key=f"pend_{empresa}_{int(r['id'])}"
             )
-            c4.write(r["data_ultima_atualizacao"])
+            c4x.write(r["data_ultima_atualizacao"])
             df_edit.loc[i, "status"] = "recebido" if novo == "Recebido" else "pendente"
 
         if st.button("💾 Salvar pendências", use_container_width=True, type="primary"):
@@ -518,76 +525,138 @@ def detalhada(tipo, agente):
             else:
                 st.info("Nenhuma alteração a salvar.")
     else:
-        # Comercial: somente leitura
         st.caption("Visualização somente leitura")
-        dpend = pendencias_df(empresa, apenas_pendentes=True)  # comercial vê só o que falta
+        dpend = pendencias_df(empresa, apenas_pendentes=True)
         st.dataframe(dpend, use_container_width=True, height=360)
 
-    # SALVAR CAMPOS PRINCIPAIS (Analista)
+    # SALVAR CAMPOS PRINCIPAIS (Analista / Liderança)
     if editable:
-     if st.button("💾 Salvar dados da empresa", type="primary", use_container_width=True):
-        payload = {
-            "situacao": situacao,
-            "limite": limite,
-            "comentario_interno": comentario_interno,
-            "envio_das": envio_das,
-            "emissao_contrato": emissao_contrato,
-            "assinatura": assinatura,
-            "homologacao": homologacao,
-            "apto_a_operar": apto_a_operar,
-        }
-
-        # 🔧 Corrige formato da data (DD-MM-YYYY)
-        if saida_credito and saida_credito.strip():
-            try:
-                data_formatada = datetime.strptime(saida_credito.strip(), "%d-%m-%Y").date()
-                payload["saida_credito"] = data_formatada  # agora vai como date pro Postgres
-            except ValueError:
-                st.warning("Data inválida em Saída Crédito (use DD-MM-YYYY).")
-                st.stop()
-        else:
-            payload["saida_credito"] = None
-
-        # Atualiza no banco
-        try:
-            atualizar_campos_empresa(empresa, payload)
-            st.success("Empresa atualizada com sucesso!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Erro ao salvar no banco: {e}")
-
-    # =========================================================
-    # 🗑️ BOTÃO DE EXCLUSÃO (somente analistas)
-    # =========================================================
-    if tipo == "analista":
-        st.markdown("---")
-        st.warning("⚠️ Esta ação é irreversível. Confirme antes de excluir a empresa.", icon="⚠️")
-
-        # Passo 1 — checkbox de confirmação
-        confirmar = st.checkbox(f"Confirmo que desejo excluir permanentemente '{empresa}'")
-
-        # Passo 2 — botão de exclusão só ativa se confirmado
-        st.markdown("")  # espaçamento visual
-        if confirmar:
-            if st.button(f"🗑️ Excluir empresa '{empresa}'", type="secondary", use_container_width=True):
+        if st.button("💾 Salvar dados da empresa", type="primary", use_container_width=True):
+            payload = {
+                "situacao": situacao,
+                "limite": limite,
+                "comentario_interno": comentario_interno,
+                "envio_das": envio_das,
+                "emissao_contrato": emissao_contrato,
+                "assinatura": assinatura,
+                "homologacao": homologacao,
+                "apto_a_operar": apto_a_operar,
+            }
+            if saida_credito and saida_credito.strip():
                 try:
-                    sql = """
-                    BEGIN;
-                    DELETE FROM pendencias_empresa WHERE empresa = %s;
-                    DELETE FROM analise_credito WHERE empresa = %s;
-                    COMMIT;
-                    """
-                    run_exec(sql, (empresa, empresa))
-                    st.success(f"✅ Empresa '{empresa}' e suas pendências foram removidas com sucesso!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro ao excluir empresa: {e}")
-        else:
-            st.info("Marque a caixa de confirmação para habilitar o botão de exclusão.")
+                    data_formatada = datetime.strptime(saida_credito.strip(), "%d-%m-%Y").date()
+                    payload["saida_credito"] = data_formatada
+                except ValueError:
+                    st.warning("Data inválida em Saída Crédito (use DD-MM-YYYY).")
+                    st.stop()
+            else:
+                payload["saida_credito"] = None
 
-        
+            try:
+                atualizar_campos_empresa(empresa, payload)
+                st.success("Empresa atualizada com sucesso!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao salvar no banco: {e}")
+
+    # 🔁 CONTROLE DE FLUXO (workflow de etapas) — somente analista / liderança
+    if editable:
+        st.markdown("---")
+        st.markdown("### 🔄 Controle de Workflow")
+        st.caption("Use os botões para mover a tarefa conforme o processo.")
+
+        etapa_atual = row.get("etapa_atual") or "Cadastro"
+
+        if etapa_atual == "Cadastro":
+            if st.button("📨 Enviar para Pendência de Posicionamento"):
+                registrar_transicao(empresa, "Pendência de Posicionamento", "Analista", 1)
+                st.success("Fluxo iniciado: Analista tem 1 dia para retornar.")
+                st.rerun()
+
+        elif etapa_atual == "Pendência de Posicionamento":
+            c1w, c2w = st.columns(2)
+            with c1w:
+                if st.button("✅ Cliente OK para análise"):
+                    registrar_transicao(empresa, "Em Análise", "Analista", 3)
+                    st.success("Cliente aprovado para análise. Prazo: 3 dias.")
+                    st.rerun()
+            with c2w:
+                if st.button("📄 Solicitar documentos ao Comercial"):
+                    registrar_transicao(empresa, "Aguardando Documentos", "Comercial", 2)
+                    st.warning("Documentos solicitados. Comercial tem 2 dias.")
+                    st.rerun()
+
+        elif etapa_atual == "Aguardando Documentos":
+            if st.button("📦 Documentos recebidos e prontos para análise"):
+                registrar_transicao(empresa, "Em Análise", "Analista", 3)
+                st.success("Documentos recebidos. Analista tem 3 dias.")
+                st.rerun()
+
+        elif etapa_atual == "Em Análise":
+            c1w, c2w = st.columns(2)
+            with c1w:
+                if st.button("✅ Aprovar Crédito"):
+                    registrar_transicao(empresa, "Aguardando Documentos Finais", "Comercial", 2)
+                    st.success("Aprovado! Comercial tem 2 dias para enviar documentos finais.")
+                    st.rerun()
+            with c2w:
+                if st.button("❌ Reprovar Crédito"):
+                    registrar_transicao(empresa, "Reprovado", "Analista", 0)
+                    st.warning("Cliente reprovado. Processo encerrado.")
+                    st.rerun()
+
+        elif etapa_atual == "Aguardando Documentos Finais":
+            if st.button("📜 Documentos finais recebidos - Preparar contrato"):
+                registrar_transicao(empresa, "Elaboração Contrato", "Analista", 2)
+                st.success("Contrato em elaboração. Prazo: 2 dias.")
+                st.rerun()
+
+        elif etapa_atual == "Elaboração Contrato":
+            if st.button("🖋️ Enviar contrato para assinatura"):
+                registrar_transicao(empresa, "Assinatura Cliente", "Comercial", 2)
+                st.info("Contrato enviado ao cliente. Comercial tem 2 dias.")
+                st.rerun()
+
+        elif etapa_atual == "Assinatura Cliente":
+            if st.button("📩 Cliente assinou - Formalizar com gestora"):
+                registrar_transicao(empresa, "Formalização Gestora", "Analista", 3)
+                st.success("Formalização com gestora em andamento. Prazo: 3 dias.")
+                st.rerun()
+
+        elif etapa_atual == "Formalização Gestora":
+            if st.button("🏁 Gestora aprovou - Finalizar processo"):
+                registrar_transicao(empresa, "Finalizado", "Analista", 0)
+                st.balloons()
+                st.success("Processo finalizado com sucesso! 🎉")
+                st.rerun()
+        else:
+            st.info("Processo finalizado ou sem ação disponível.")
+
+        # 🗑️ EXCLUSÃO (somente analista)
+        if tipo == "analista":
+            st.markdown("---")
+            st.warning("⚠️ Esta ação é irreversível. Confirme antes de excluir a empresa.", icon="⚠️")
+            confirmar = st.checkbox(f"Confirmo que desejo excluir permanentemente '{empresa}'")
+            if confirmar:
+                if st.button(f"🗑️ Excluir empresa '{empresa}'", type="secondary", use_container_width=True):
+                    try:
+                        sql = """
+                        BEGIN;
+                        DELETE FROM pendencias_empresa WHERE empresa = %s;
+                        DELETE FROM log_workflow WHERE empresa = %s;
+                        DELETE FROM analise_credito WHERE empresa = %s;
+                        COMMIT;
+                        """
+                        run_exec(sql, (empresa, empresa, empresa))
+                        st.success(f"✅ Empresa '{empresa}' e seus registros foram removidos com sucesso!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao excluir empresa: {e}")
+            else:
+                st.info("Marque a caixa de confirmação para habilitar o botão de exclusão.")
+
 # =========================================================
-# ROTEAMENTO
+# 🔀 ROTEAMENTO
 # =========================================================
 if st.session_state.tab == "Overview":
     overview(st.session_state.tipo, st.session_state.agente)
