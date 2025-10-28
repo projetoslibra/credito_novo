@@ -59,7 +59,6 @@ def sidebar_content():
             st.success(f"Olá, **{nome}** ({tipo})")
             st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
-
 # =========================================================
 # 🏷 HEADER CENTRALIZADO
 # =========================================================
@@ -89,7 +88,6 @@ def header():
         unsafe_allow_html=True
     )
     st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
-
 
 # =========================================================
 # 🌑 CSS GLOBAL
@@ -167,10 +165,11 @@ ensure_indexes()
 def registrar_transicao(empresa, nova_etapa, novo_responsavel, prazo_dias):
     """Registra transição de etapa e atualiza status atual."""
     try:
+        status_prazo = "Dentro do prazo" if prazo_dias and prazo_dias > 0 else "Sem prazo"
         run_exec("""
-            INSERT INTO log_workflow (empresa, etapa, responsavel, prazo_dias)
-            VALUES (%s, %s, %s, %s);
-        """, (empresa, nova_etapa, novo_responsavel, prazo_dias))
+            INSERT INTO log_workflow (empresa, etapa, responsavel, prazo_dias, status_prazo)
+            VALUES (%s, %s, %s, %s, %s);
+        """, (empresa, nova_etapa, novo_responsavel, prazo_dias, status_prazo))
         run_exec("""
             UPDATE analise_credito
                SET etapa_atual = %s,
@@ -346,25 +345,6 @@ def calcular_status_prazo(data_str_ddmmyyyy, prazo_dias):
     return "Atrasado" if datetime.now() > limite.to_pydatetime() else "Dentro do prazo"
 
 # =========================================================
-# 📊 INTERFACE
-# =========================================================
-header()
-sidebar_content()
-
-if "tab" not in st.session_state:
-    st.session_state.tab = "Overview"
-
-colA, colB = st.columns(2)
-with colA:
-    if st.button("📊 Overview", use_container_width=True):
-        st.session_state.tab = "Overview"
-with colB:
-    if st.button("🧠 Detalhada", use_container_width=True):
-        st.session_state.tab = "Detalhada"
-
-st.write("---")
-
-# =========================================================
 # OVERVIEW
 # =========================================================
 def overview(tipo, agente):
@@ -423,7 +403,7 @@ def detalhada(tipo, agente):
             if st.button("Cadastrar empresa", type="primary"):
                 if nova_emp.strip():
                     seed_empresa_if_missing(nova_emp.strip(), agente)
-                    # starta o fluxo marcando pendência de posicionamento
+                    # inicia o fluxo marcando pendência de posicionamento
                     registrar_transicao(nova_emp.strip(), "Pendência de Posicionamento", "Analista", 1)
                     st.success("Empresa cadastrada e fluxo iniciado!")
                     st.rerun()
@@ -450,7 +430,7 @@ def detalhada(tipo, agente):
 
     st.markdown("### 🧰 Edição Completa" if tipo != "comercial" else "### 📄 Detalhe da Empresa")
 
-    # Formulário (analista pode editar; comercial só vê)
+    # Formulário (analista/liderança pode editar; comercial só vê)
     editable = (tipo in ["analista", "Diretor", "CEO"])
     col1, col2, col3 = st.columns([0.33, 0.34, 0.33])
 
@@ -559,78 +539,80 @@ def detalhada(tipo, agente):
             except Exception as e:
                 st.error(f"Erro ao salvar no banco: {e}")
 
-    # 🔁 CONTROLE DE FLUXO (workflow de etapas) — somente analista / liderança
-    if editable:
-        st.markdown("---")
-        st.markdown("### 🔄 Controle de Workflow")
-        st.caption("Use os botões para mover a tarefa conforme o processo.")
+# =========================================================
+# 🧭 WORKFLOW – nova aba dedicada
+# =========================================================
+def workflow(tipo, agente):
+    st.markdown("## 🧭 Controle de Workflow")
+    st.caption("Gerencie as etapas, prazos e responsáveis das análises de crédito de forma visual e organizada.")
 
-        etapa_atual = row.get("etapa_atual") or "Cadastro"
+    # 🔹 Escolha da empresa
+    df_emp = run_query_df("SELECT empresa, etapa_atual, responsavel_atual FROM analise_credito ORDER BY empresa")
+    if df_emp.empty:
+        st.info("Nenhuma empresa cadastrada ainda.")
+        return
 
-        if etapa_atual == "Cadastro":
-            if st.button("📨 Enviar para Pendência de Posicionamento"):
-                registrar_transicao(empresa, "Pendência de Posicionamento", "Analista", 1)
-                st.success("Fluxo iniciado: Analista tem 1 dia para retornar.")
-                st.rerun()
+    empresa = st.selectbox("Selecione uma empresa", df_emp["empresa"].tolist())
+    dados = run_query_df("SELECT * FROM analise_credito WHERE empresa = %s", (empresa,))
+    row = dados.iloc[0].to_dict()
 
-        elif etapa_atual == "Pendência de Posicionamento":
-            c1w, c2w = st.columns(2)
-            with c1w:
-                if st.button("✅ Cliente OK para análise"):
-                    registrar_transicao(empresa, "Em Análise", "Analista", 3)
-                    st.success("Cliente aprovado para análise. Prazo: 3 dias.")
-                    st.rerun()
-            with c2w:
-                if st.button("📄 Solicitar documentos ao Comercial"):
-                    registrar_transicao(empresa, "Aguardando Documentos", "Comercial", 2)
-                    st.warning("Documentos solicitados. Comercial tem 2 dias.")
-                    st.rerun()
+    # 🔹 Cabeçalho informativo
+    st.markdown(f"""
+    <div style="background:#0b2e39;padding:14px;border-radius:10px;border:1px solid #0e3a47;">
+        <h3 style="margin:0;">🏢 {empresa}</h3>
+        <p style="margin:4px 0 0 0;">
+        <b>Etapa atual:</b> {row.get('etapa_atual','Cadastro')} |
+        <b>Responsável:</b> {row.get('responsavel_atual','Analista')} |
+        <b>Última atualização:</b> {row.get('data_ultima_movimentacao')}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-        elif etapa_atual == "Aguardando Documentos":
-            if st.button("📦 Documentos recebidos e prontos para análise"):
-                registrar_transicao(empresa, "Em Análise", "Analista", 3)
-                st.success("Documentos recebidos. Analista tem 3 dias.")
-                st.rerun()
-
-        elif etapa_atual == "Em Análise":
-            c1w, c2w = st.columns(2)
-            with c1w:
-                if st.button("✅ Aprovar Crédito"):
-                    registrar_transicao(empresa, "Aguardando Documentos Finais", "Comercial", 2)
-                    st.success("Aprovado! Comercial tem 2 dias para enviar documentos finais.")
-                    st.rerun()
-            with c2w:
-                if st.button("❌ Reprovar Crédito"):
-                    registrar_transicao(empresa, "Reprovado", "Analista", 0)
-                    st.warning("Cliente reprovado. Processo encerrado.")
-                    st.rerun()
-
-        elif etapa_atual == "Aguardando Documentos Finais":
-            if st.button("📜 Documentos finais recebidos - Preparar contrato"):
-                registrar_transicao(empresa, "Elaboração Contrato", "Analista", 2)
-                st.success("Contrato em elaboração. Prazo: 2 dias.")
-                st.rerun()
-
-        elif etapa_atual == "Elaboração Contrato":
-            if st.button("🖋️ Enviar contrato para assinatura"):
-                registrar_transicao(empresa, "Assinatura Cliente", "Comercial", 2)
-                st.info("Contrato enviado ao cliente. Comercial tem 2 dias.")
-                st.rerun()
-
-        elif etapa_atual == "Assinatura Cliente":
-            if st.button("📩 Cliente assinou - Formalizar com gestora"):
-                registrar_transicao(empresa, "Formalização Gestora", "Analista", 3)
-                st.success("Formalização com gestora em andamento. Prazo: 3 dias.")
-                st.rerun()
-
-        elif etapa_atual == "Formalização Gestora":
-            if st.button("🏁 Gestora aprovou - Finalizar processo"):
-                registrar_transicao(empresa, "Finalizado", "Analista", 0)
-                st.balloons()
-                st.success("Processo finalizado com sucesso! 🎉")
-                st.rerun()
+    # 🔹 Linha do tempo visual (Timeline)
+    etapas = [
+        "Cadastro", "Pendência de Posicionamento", "Aguardando Documentos", "Em Análise",
+        "Aguardando Documentos Finais", "Elaboração Contrato", "Assinatura Cliente",
+        "Formalização Gestora", "Finalizado"
+    ]
+    etapa_atual = row.get("etapa_atual", "Cadastro")
+    st.markdown("### 📜 Etapas do Processo")
+    timeline = []
+    for e in etapas:
+        if e == etapa_atual:
+            timeline.append(f"<span style='color:#C66300;font-weight:700;'>🟡 {e}</span>")
+        elif etapas.index(e) < etapas.index(etapa_atual):
+            timeline.append(f"<span style='color:#00C853;font-weight:600;'>🟢 {e}</span>")
         else:
-            st.info("Processo finalizado ou sem ação disponível.")
+            timeline.append(f"<span style='color:#546E7A;'>⚪ {e}</span>")
+    st.markdown(" → ".join(timeline), unsafe_allow_html=True)
+
+    # 🔹 Atualização de Workflow (somente analista ou diretor)
+    if tipo in ["analista", "Diretor", "CEO"]:
+        st.markdown("### 🔄 Atualizar Workflow")
+        nova_etapa = st.selectbox("Nova Etapa", etapas, index=etapas.index(etapa_atual))
+        novo_resp = st.selectbox("Novo Responsável", ["Analista", "Comercial", "Gestora"])
+        prazo_dias = st.number_input("Prazo (dias)", min_value=0, step=1, value=2)
+
+        if st.button("💾 Registrar Transição", use_container_width=True, type="primary"):
+            try:
+                registrar_transicao(empresa, nova_etapa, novo_resp, prazo_dias)
+                st.success(f"✅ Etapa '{nova_etapa}' atualizada com sucesso! Responsável: {novo_resp}")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao registrar transição: {e}")
+
+    # 🔹 Histórico de movimentações
+    df_log = run_query_df("""
+        SELECT etapa, responsavel, created_at, prazo_dias, status_prazo
+        FROM log_workflow
+        WHERE empresa = %s
+        ORDER BY created_at DESC;
+    """, (empresa,))
+    st.markdown("### 🕒 Histórico de Movimentações")
+    if df_log.empty:
+        st.info("Nenhuma transição registrada ainda.")
+    else:
+        st.dataframe(df_log, use_container_width=True, height=300)
 
         # 🗑️ EXCLUSÃO (somente analista)
         if tipo == "analista":
@@ -640,14 +622,9 @@ def detalhada(tipo, agente):
             if confirmar:
                 if st.button(f"🗑️ Excluir empresa '{empresa}'", type="secondary", use_container_width=True):
                     try:
-                        sql = """
-                        BEGIN;
-                        DELETE FROM pendencias_empresa WHERE empresa = %s;
-                        DELETE FROM log_workflow WHERE empresa = %s;
-                        DELETE FROM analise_credito WHERE empresa = %s;
-                        COMMIT;
-                        """
-                        run_exec(sql, (empresa, empresa, empresa))
+                        run_exec("DELETE FROM pendencias_empresa WHERE empresa = %s", (empresa,))
+                        run_exec("DELETE FROM log_workflow WHERE empresa = %s", (empresa,))
+                        run_exec("DELETE FROM analise_credito WHERE empresa = %s", (empresa,))
                         st.success(f"✅ Empresa '{empresa}' e seus registros foram removidos com sucesso!")
                         st.rerun()
                     except Exception as e:
@@ -656,9 +633,28 @@ def detalhada(tipo, agente):
                 st.info("Marque a caixa de confirmação para habilitar o botão de exclusão.")
 
 # =========================================================
-# 🔀 ROTEAMENTO
+# 📊 INTERFACE E ROTEAMENTO FINAL
 # =========================================================
+header()
+sidebar_content()
+
+if "tab" not in st.session_state:
+    st.session_state.tab = "Overview"
+
+colA, colB, colC = st.columns(3)
+with colA:
+    if st.button("📊 Overview", use_container_width=True):
+        st.session_state.tab = "Overview"
+with colB:
+    if st.button("🧠 Detalhada", use_container_width=True):
+        st.session_state.tab = "Detalhada"
+with colC:
+    if st.button("🧭 Workflow", use_container_width=True):
+        st.session_state.tab = "Workflow"
+
 if st.session_state.tab == "Overview":
     overview(st.session_state.tipo, st.session_state.agente)
-else:
+elif st.session_state.tab == "Detalhada":
     detalhada(st.session_state.tipo, st.session_state.agente)
+else:
+    workflow(st.session_state.tipo, st.session_state.agente)
