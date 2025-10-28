@@ -128,6 +128,14 @@ DB_CONFIG = {
     "password": st.secrets["db_password"],
 }
 
+def safe_int(value, default=0):
+    try:
+        if value is None or str(value).strip() in ["", "None", "nan", "NaN", "NoneType"]:
+            return default
+        return int(float(value))
+    except Exception:
+        return default
+
 @st.cache_resource(show_spinner=False)
 def get_conn():
     return psycopg2.connect(**DB_CONFIG)
@@ -163,13 +171,21 @@ def ensure_indexes():
 ensure_indexes()
 
 def registrar_transicao(empresa, nova_etapa, novo_responsavel, prazo_dias):
-    """Registra transição de etapa, status_prazo inicial e atualiza status atual."""
+    """Registra transição de etapa, status_prazo inicial e atualiza status atual (com segurança)."""
     try:
-        status_prazo = "Dentro do prazo" if prazo_dias and int(prazo_dias) > 0 else "Sem prazo"
+        # converte o prazo de forma segura
+        try:
+            prazo_int = int(float(prazo_dias)) if str(prazo_dias).strip() not in ["", "None", "nan", "NaN", "NoneType"] else 0
+        except Exception:
+            prazo_int = 0
+
+        status_prazo = "Dentro do prazo" if prazo_int > 0 else "Sem prazo"
+
         run_exec("""
             INSERT INTO log_workflow (empresa, etapa, responsavel, prazo_dias, status_prazo)
             VALUES (%s, %s, %s, %s, %s);
-        """, (empresa, nova_etapa, novo_responsavel, prazo_dias, status_prazo))
+        """, (empresa, nova_etapa, novo_responsavel, prazo_int, status_prazo))
+
         run_exec("""
             UPDATE analise_credito
                SET etapa_atual = %s,
@@ -177,6 +193,7 @@ def registrar_transicao(empresa, nova_etapa, novo_responsavel, prazo_dias):
                    data_ultima_movimentacao = NOW()
              WHERE empresa = %s;
         """, (nova_etapa, novo_responsavel, empresa))
+
     except Exception as e:
         st.error(f"Erro ao registrar transição: {e}")
 
@@ -373,7 +390,7 @@ def calcular_status_prazo(data_str_ddmmyyyy, prazo_dias):
         return "Sem prazo"
 
     try:
-        dt = datetime.strptime(data_str_ddmmyyyy, "%d/%m/%Y")
+        dt = datetime.strptime(str(data_str_ddmmyyyy), "%d/%m/%Y")
     except Exception:
         return "Sem prazo"
 
@@ -431,6 +448,7 @@ def overview(tipo, agente_logado):
         axis=1
     )
 
+    # === Tabela clássica ===
     if modo_tabela:
         cols = ["empresa","agente","situacao","etapa_atual","responsavel_atual",
                 "prazo_dias","status_prazo","entrada_fmt","ultima_movimentacao_fmt",
@@ -439,22 +457,28 @@ def overview(tipo, agente_logado):
         st.dataframe(df[show], use_container_width=True, height=min(640, 80 + len(df)*28))
         return
 
-    # Cards
+    # === Cards (visão visual e organizada) ===
     st.markdown("### 📋 Empresas (visão compacta)")
     n_cols = 3
     rows = (len(df) + n_cols - 1) // n_cols
+
     for r in range(rows):
         cols = st.columns(n_cols)
         for i in range(n_cols):
-            idx = r*n_cols + i
-            if idx >= len(df): break
+            idx = r * n_cols + i
+            if idx >= len(df):
+                break
             row = df.iloc[idx]
 
-            status_chip = "🟢 Dentro do prazo" if row["status_prazo"] == "Dentro do prazo" else ("🔴 Atrasado" if row["status_prazo"] == "Atrasado" else "⚪ Sem prazo")
+            status_chip = (
+                "🟢 Dentro do prazo"
+                if row["status_prazo"] == "Dentro do prazo"
+                else ("🔴 Atrasado" if row["status_prazo"] == "Atrasado" else "⚪ Sem prazo")
+            )
             etapa = row.get("etapa_atual") or "—"
             resp = row.get("responsavel_atual") or "—"
-            pend = int(row.get("pendentes_restantes") or 0)
-            prazo = int(row.get("prazo_dias") or 0)
+            pend = safe_int(row.get("pendentes_restantes"))
+            prazo = safe_int(row.get("prazo_dias"))
             entrada = row.get("entrada_fmt") or "—"
             ult = row.get("ultima_movimentacao_fmt") or "—"
             limite = float(row.get("limite") or 0.0)
@@ -462,27 +486,35 @@ def overview(tipo, agente_logado):
 
             with cols[i]:
                 st.markdown(f"""
-                <div class="dark-box" style="background:#0b2e39;border:1px solid #0e3a47;border-radius:12px;padding:14px;margin-bottom:10px;">
+                <div style="background:linear-gradient(135deg, #0b2e39 0%, #07323f 100%);
+                            border:1px solid #104052;
+                            border-radius:14px;
+                            padding:16px 18px;
+                            margin-bottom:12px;
+                            box-shadow:0 2px 6px rgba(0,0,0,0.25);">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div style="font-weight:800;font-size:1.05rem;">{row['empresa']}</div>
-                        <div style="font-size:.85rem;color:{SLATE_GRAY}">Agente: <b style="color:{HONEYDEW}">{agente}</b></div>
+                        <div style="font-weight:800;font-size:1.1rem;color:{HONEYDEW};">{row['empresa']}</div>
+                        <div style="font-size:.85rem;color:{SLATE_GRAY}">👤 <b>{agente}</b></div>
                     </div>
-                    <div style="margin-top:6px;font-size:.9rem;">
-                        <div>Etapa: <b>{etapa}</b> • Resp.: <b>{resp}</b></div>
-                        <div>Entrada: <b>{entrada}</b> • Última mov.: <b>{ult}</b></div>
-                        <div>Pendências: <b>{pend}</b> • Prazo(d): <b>{prazo}</b></div>
-                        <div>Limite: <b>R$ {limite:,.2f}</b></div>
-                        <div style="margin-top:6px;">Status prazo:
-                            <span style="padding:2px 8px;border-radius:12px;background:{HARVEST_GOLD}22;border:1px solid {HARVEST_GOLD}55;">
-                                {status_chip}
-                            </span>
-                        </div>
+                    <div style="margin-top:8px;font-size:.9rem;color:{HONEYDEW}CC;">
+                        <div>📍 Etapa: <b>{etapa}</b> | Resp.: <b>{resp}</b></div>
+                        <div>📅 Entrada: <b>{entrada}</b> | Última mov.: <b>{ult}</b></div>
+                        <div>🧾 Pendências: <b>{pend}</b> | ⏱ Prazo: <b>{prazo}</b> dias</div>
+                        <div>💰 Limite: <b>R$ {limite:,.2f}</b></div>
+                    </div>
+                    <div style="margin-top:8px;text-align:right;">
+                        <span style="padding:3px 10px;border-radius:12px;
+                                     background:{HARVEST_GOLD}22;
+                                     border:1px solid {HARVEST_GOLD}55;">
+                            {status_chip}
+                        </span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
+                # 📎 Expander com pendências
                 with st.expander("Ver pendências"):
-                    dpend = pendencias_df(row["empresa"], apenas_pendentes=(tipo=="comercial"))
+                    dpend = pendencias_df(row["empresa"], apenas_pendentes=(tipo == "comercial"))
                     st.dataframe(dpend, use_container_width=True, height=200)
 
                 # 🧭 Botão direto pro Workflow
