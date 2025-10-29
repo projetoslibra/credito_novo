@@ -563,10 +563,20 @@ def overview(tipo, agente_logado):
             limite = float(row.get("limite") or 0.0)
             agente = row.get("agente") or "—"
 
+            # 🔄 Converte data da última transição (para cálculo da barra)
+            ultima_transicao = row.get("ultima_transicao_em")
+            if pd.notnull(ultima_transicao):
+                try:
+                    ultima_transicao = pd.to_datetime(ultima_transicao)
+                except Exception:
+                    ultima_transicao = None
+            else:
+                ultima_transicao = None
+
             # progresso (com base no created_at mais recente e prazo)
             perc, cor_barra, dias_rest, status_calc = calcular_progresso(
                 row.get("prazo_dias"),
-                row.get("ultima_transicao_em")
+                ultima_transicao
             )
 
             # status chip (mantendo padrão)
