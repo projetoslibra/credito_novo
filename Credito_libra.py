@@ -42,6 +42,22 @@ st.markdown(
       .stDataFrame, .stTable, .stMarkdown, .stText {{
         color: {HONEYDEW} !important;
       }}
+      /* Progress bar discreta no rodapé do card */
+      .prog-wrap {{
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        overflow: hidden;
+      }}
+      .prog-fill {{
+        height: 100%;
+        transition: width .45s ease;
+      }}
+      .chip {{
+        padding:3px 10px;border-radius:12px;background:{HARVEST_GOLD}22;border:1px solid {HARVEST_GOLD}55;
+      }}
     </style>
     """,
     unsafe_allow_html=True
@@ -171,21 +187,29 @@ def ensure_indexes():
 ensure_indexes()
 
 def registrar_transicao(empresa, nova_etapa, novo_responsavel, prazo_dias):
-    """Registra transição de etapa, status_prazo inicial e atualiza status atual (com segurança)."""
+    """
+    Registra uma nova transição no fluxo de crédito.
+    - Garante que os dados da etapa atual sejam atualizados.
+    - Registra histórico completo no log_workflow.
+    - Mantém data_ultima_movimentacao sincronizada.
+    """
     try:
-        # converte o prazo de forma segura
+        # 🧩 Conversão segura do prazo
         try:
-            prazo_int = int(float(prazo_dias)) if str(prazo_dias).strip() not in ["", "None", "nan", "NaN", "NoneType"] else 0
+            prazo_int = int(float(prazo_dias)) if str(prazo_dias).strip() not in ["", "None", "nan", "NaN"] else 0
         except Exception:
             prazo_int = 0
 
+        # 🕒 Status de prazo inicial
         status_prazo = "Dentro do prazo" if prazo_int > 0 else "Sem prazo"
 
+        # 💾 Registro no log_workflow
         run_exec("""
-            INSERT INTO log_workflow (empresa, etapa, responsavel, prazo_dias, status_prazo)
-            VALUES (%s, %s, %s, %s, %s);
+            INSERT INTO log_workflow (empresa, etapa, responsavel, prazo_dias, status_prazo, created_at)
+            VALUES (%s, %s, %s, %s, %s, NOW());
         """, (empresa, nova_etapa, novo_responsavel, prazo_int, status_prazo))
 
+        # 🔄 Atualização na tabela principal
         run_exec("""
             UPDATE analise_credito
                SET etapa_atual = %s,
@@ -193,6 +217,11 @@ def registrar_transicao(empresa, nova_etapa, novo_responsavel, prazo_dias):
                    data_ultima_movimentacao = NOW()
              WHERE empresa = %s;
         """, (nova_etapa, novo_responsavel, empresa))
+
+        st.toast(
+            f"🚀 Etapa '{nova_etapa}' registrada com sucesso! Responsável: {novo_responsavel} | Prazo: {prazo_int} dia(s)",
+            icon="✅"
+        )
 
     except Exception as e:
         st.error(f"Erro ao registrar transição: {e}")
@@ -304,6 +333,7 @@ def tabela_status_empresas(filtro_agente=None, data_ini=None):
 
     where_sql = f"WHERE {' AND '.join(wheres)}" if wheres else ""
 
+    # 🔎 inclui created_at da última transição (ultima_transicao_em)
     sql = f"""
     SELECT
         ac.empresa,
@@ -319,6 +349,11 @@ def tabela_status_empresas(filtro_agente=None, data_ini=None):
           WHERE lw.empresa = ac.empresa
           ORDER BY lw.created_at DESC
           LIMIT 1) AS prazo_dias,
+        (SELECT created_at
+           FROM log_workflow lw2
+          WHERE lw2.empresa = ac.empresa
+          ORDER BY lw2.created_at DESC
+          LIMIT 1) AS ultima_transicao_em,
         (SELECT COUNT(*)
            FROM pendencias_empresa p
           WHERE p.empresa = ac.empresa
@@ -399,6 +434,39 @@ def calcular_status_prazo(data_str_ddmmyyyy, prazo_dias):
         limite = limite.to_pydatetime()
     return "Atrasado" if datetime.now() > limite else "Dentro do prazo"
 
+def calcular_progresso(prazo_dias, ultima_transicao_em):
+    """
+    Retorna (percentual, cor_hex, dias_restantes, status_avaliado)
+    - percentual: 0..100
+    - cor: verde / amarelo / vermelho conforme % e atraso
+    """
+    try:
+        p = int(float(prazo_dias)) if str(prazo_dias).strip() not in ["", "None", "nan", "NaN"] else 0
+    except Exception:
+        p = 0
+
+    if not ultima_transicao_em or p <= 0:
+        return 0, "#2E7D32", None, "Sem prazo"  # verde discreto
+
+    try:
+        start = pd.to_datetime(ultima_transicao_em)
+    except Exception:
+        return 0, "#2E7D32", None, "Sem prazo"
+
+    hoje = pd.Timestamp.now()
+    dias_passados = max(0, (hoje.normalize() - start.normalize()).days)
+    dias_restantes = p - dias_passados
+    frac = dias_passados / p if p > 0 else 0
+    perc = max(0, min(1, frac)) * 100
+
+    if dias_restantes < 0:
+        # atrasado
+        return 100, "#C62828", dias_restantes, "Atrasado"
+    elif perc >= 80:
+        return perc, "#F9A825", dias_restantes, "Dentro do prazo"
+    else:
+        return perc, "#2E7D32", dias_restantes, "Dentro do prazo"
+
 # =========================================================
 # OVERVIEW (Cards + filtros + botão "Ver no Workflow")
 # =========================================================
@@ -470,11 +538,7 @@ def overview(tipo, agente_logado):
                 break
             row = df.iloc[idx]
 
-            status_chip = (
-                "🟢 Dentro do prazo"
-                if row["status_prazo"] == "Dentro do prazo"
-                else ("🔴 Atrasado" if row["status_prazo"] == "Atrasado" else "⚪ Sem prazo")
-            )
+            # chips e campos
             etapa = row.get("etapa_atual") or "—"
             resp = row.get("responsavel_atual") or "—"
             pend = safe_int(row.get("pendentes_restantes"))
@@ -483,6 +547,26 @@ def overview(tipo, agente_logado):
             ult = row.get("ultima_movimentacao_fmt") or "—"
             limite = float(row.get("limite") or 0.0)
             agente = row.get("agente") or "—"
+
+            # progresso (com base no created_at mais recente e prazo)
+            perc, cor_barra, dias_rest, status_calc = calcular_progresso(
+                row.get("prazo_dias"),
+                row.get("ultima_transicao_em")
+            )
+
+            # status chip (mantendo padrão)
+            status_chip = (
+                "🔴 Atrasado" if status_calc == "Atrasado"
+                else ("🟢 Dentro do prazo" if status_calc == "Dentro do prazo" else "⚪ Sem prazo")
+            )
+
+            # label do prazo: D-? ou "Sem prazo"
+            if dias_rest is None:
+                prazo_label = "—"
+            elif dias_rest < 0:
+                prazo_label = f"⚠️ Atrasado {abs(dias_rest)}d"
+            else:
+                prazo_label = f"D-{dias_rest}"
 
             with cols[i]:
                 st.markdown(f"""
@@ -499,15 +583,17 @@ def overview(tipo, agente_logado):
                     <div style="margin-top:8px;font-size:.9rem;color:{HONEYDEW}CC;">
                         <div>📍 Etapa: <b>{etapa}</b> | Resp.: <b>{resp}</b></div>
                         <div>📅 Entrada: <b>{entrada}</b> | Última mov.: <b>{ult}</b></div>
-                        <div>🧾 Pendências: <b>{pend}</b> | ⏱ Prazo: <b>{prazo}</b> dias</div>
+                        <div>🧾 Pendências: <b>{pend}</b> | ⏱ Prazo: <b>{prazo}</b> dias | <b>{prazo_label}</b></div>
                         <div>💰 Limite: <b>R$ {limite:,.2f}</b></div>
                     </div>
-                    <div style="margin-top:8px;text-align:right;">
-                        <span style="padding:3px 10px;border-radius:12px;
-                                     background:{HARVEST_GOLD}22;
-                                     border:1px solid {HARVEST_GOLD}55;">
-                            {status_chip}
-                        </span>
+                    <div style="margin-top:10px;">
+                        <div class="prog-wrap">
+                            <div class="prog-fill" style="width:{perc:.0f}%; background:{cor_barra};"></div>
+                        </div>
+                        <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:.8rem; color:{SLATE_GRAY}">{perc:.0f}% do prazo</span>
+                            <span class="chip">{status_chip}</span>
+                        </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -532,19 +618,34 @@ def detalhada(tipo, agente):
         with st.expander("➕ Cadastrar nova empresa", expanded=False):
             c1, c2 = st.columns([0.6, 0.4])
             with c1:
-                nova_emp = st.text_input("Empresa")
+                nova_emp = st.text_input("Empresa", placeholder="Digite o nome da empresa")
             with c2:
                 st.text_input("Agente", value=agente, disabled=True)
-            if st.button("Cadastrar empresa", type="primary"):
-                if nova_emp and nova_emp.strip():
-                    seed_empresa_if_missing(nova_emp.strip(), agente)
-                    registrar_transicao(nova_emp.strip(), "Pendência de Posicionamento", "Analista", 1)
-                    st.success("Empresa cadastrada e fluxo iniciado!")
-                    st.rerun()
-                else:
-                    st.warning("Informe o nome da empresa.")
 
-    # Escolha da empresa
+            if st.button("Cadastrar empresa", type="primary", use_container_width=True):
+                if not nova_emp or not nova_emp.strip():
+                    st.warning("⚠️ Informe o nome da empresa antes de cadastrar.")
+                    st.stop()
+
+                empresa_nome = nova_emp.strip()
+
+                # 🧱 Cria o registro base se não existir
+                seed_empresa_if_missing(empresa_nome, agente)
+
+                # 🚀 Inicia automaticamente o fluxo com o analista (1 dia)
+                registrar_transicao(
+                    empresa=empresa_nome,
+                    nova_etapa="Pendência de Posicionamento",
+                    novo_responsavel="Analista",
+                    prazo_dias=1
+                )
+
+                st.balloons()
+                st.success(f"🚀 Empresa **{empresa_nome}** cadastrada com sucesso!")
+                st.info("📨 Fluxo iniciado: o analista tem **1 dia** para posicionar o cliente.")
+                st.rerun()
+
+    # 👇 lista de empresas para o selectbox
     df = tabela_status_empresas(None if tipo != "comercial" else agente)
     if df.empty:
         st.info("Sem empresas para exibir.")
