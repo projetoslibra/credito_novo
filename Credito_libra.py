@@ -322,7 +322,7 @@ def conta_kpis(filtro_agente=None):
     pend = safe_count(f"SELECT COUNT(*) FROM pendencias_empresa {where_p} AND status='pendente'", params_p)
     return tot_emp, aprov, reprov, pend
 
-def tabela_status_empresas(filtro_agente=None, data_ini=None):
+def tabela_status_empresas(filtro_agente=None, data_ini=None, data_fim=None):
     wheres, params = [], []
     if filtro_agente:
         wheres.append("ac.agente = %s")
@@ -330,10 +330,12 @@ def tabela_status_empresas(filtro_agente=None, data_ini=None):
     if data_ini:
         wheres.append("ac.entrada >= %s")
         params.append(data_ini)
+    if data_fim:
+        wheres.append("ac.entrada <= %s")
+        params.append(data_fim)
 
     where_sql = f"WHERE {' AND '.join(wheres)}" if wheres else ""
 
-    # 🔎 inclui created_at da última transição (ultima_transicao_em)
     sql = f"""
     SELECT
         ac.empresa,
@@ -349,11 +351,6 @@ def tabela_status_empresas(filtro_agente=None, data_ini=None):
           WHERE lw.empresa = ac.empresa
           ORDER BY lw.created_at DESC
           LIMIT 1) AS prazo_dias,
-        (SELECT created_at
-           FROM log_workflow lw2
-          WHERE lw2.empresa = ac.empresa
-          ORDER BY lw2.created_at DESC
-          LIMIT 1) AS ultima_transicao_em,
         (SELECT COUNT(*)
            FROM pendencias_empresa p
           WHERE p.empresa = ac.empresa
@@ -364,7 +361,6 @@ def tabela_status_empresas(filtro_agente=None, data_ini=None):
     """
     df = run_query_df(sql, params)
     if not df.empty:
-        # formatar campos data para exibição
         try:
             df["entrada_fmt"] = pd.to_datetime(df["entrada"]).dt.strftime("%d/%m/%Y")
         except Exception:
@@ -470,9 +466,10 @@ def calcular_progresso(prazo_dias, ultima_transicao_em):
 # =========================================================
 # OVERVIEW (Cards + filtros + botão "Ver no Workflow")
 # =========================================================
+
 def overview(tipo, agente_logado):
     st.markdown("### 🎛️ Filtros")
-    c1, c2, c3 = st.columns([0.35, 0.35, 0.30])
+    c1, c2, c3, c4 = st.columns([0.25, 0.25, 0.25, 0.25])
 
     with c1:
         agentes = listar_agentes()
@@ -485,10 +482,12 @@ def overview(tipo, agente_logado):
             filtro_agente = agente_logado  # força filtro do comercial logado
 
     with c2:
-        default_ini = pd.Timestamp.today().normalize() - pd.Timedelta(days=30)
-        data_ini = st.date_input("A partir de", value=default_ini.date(), format="DD/MM/YYYY")
+        data_inicio = st.date_input("Data inicial", value=pd.Timestamp.today() - pd.Timedelta(days=30), format="DD/MM/YYYY")
 
     with c3:
+        data_fim = st.date_input("Data final", value=pd.Timestamp.today(), format="DD/MM/YYYY")
+
+    with c4:
         modo_tabela = st.toggle("Modo tabela", value=False, help="Alterna para a visão tabular clássica")
 
     # KPIs
@@ -500,7 +499,11 @@ def overview(tipo, agente_logado):
     with k4: kpi("Pendências totais", p)
 
     # Dados
-    df = tabela_status_empresas(filtro_agente=filtro_agente, data_ini=pd.to_datetime(data_ini).date())
+    df = tabela_status_empresas(
+        filtro_agente=filtro_agente,
+        data_ini=pd.to_datetime(data_inicio).date(),
+        data_fim=pd.to_datetime(data_fim).date()
+    )
     if df.empty:
         st.info("Sem empresas no período/filtro selecionado.")
         return
@@ -577,10 +580,10 @@ def overview(tipo, agente_logado):
                             margin-bottom:12px;
                             box-shadow:0 2px 6px rgba(0,0,0,0.25);">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div style="font-weight:800;font-size:1.1rem;color:{HONEYDEW};">{row['empresa']}</div>
-                        <div style="font-size:.85rem;color:{SLATE_GRAY}">👤 <b>{agente}</b></div>
+                        <div style="font-weight:800;font-size:1.1rem;color:#FFF4E3;">{row['empresa']}</div>
+                        <div style="font-size:.85rem;color:#717c89">👤 <b>{agente}</b></div>
                     </div>
-                    <div style="margin-top:8px;font-size:.9rem;color:{HONEYDEW}CC;">
+                    <div style="margin-top:8px;font-size:.9rem;color:#FFF4E3CC;">
                         <div>📍 Etapa: <b>{etapa}</b> | Resp.: <b>{resp}</b></div>
                         <div>📅 Entrada: <b>{entrada}</b> | Última mov.: <b>{ult}</b></div>
                         <div>🧾 Pendências: <b>{pend}</b> | ⏱ Prazo: <b>{prazo}</b> dias | <b>{prazo_label}</b></div>
@@ -591,7 +594,7 @@ def overview(tipo, agente_logado):
                             <div class="prog-fill" style="width:{perc:.0f}%; background:{cor_barra};"></div>
                         </div>
                         <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:.8rem; color:{SLATE_GRAY}">{perc:.0f}% do prazo</span>
+                            <span style="font-size:.8rem; color:#717c89">{perc:.0f}% do prazo</span>
                             <span class="chip">{status_chip}</span>
                         </div>
                     </div>
