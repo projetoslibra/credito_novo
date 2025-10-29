@@ -563,9 +563,9 @@ def overview(tipo, agente_logado):
             limite = float(row.get("limite") or 0.0)
             agente = row.get("agente") or "—"
 
-            # 🔄 Converte data da última transição (para cálculo da barra)
+            # 🔄 Converte a data de última transição em datetime
             ultima_transicao = row.get("ultima_transicao_em")
-            if pd.notnull(ultima_transicao):
+            if pd.notnull(ultima_transicao) and ultima_transicao not in [None, "None", "NaT", ""]:
                 try:
                     ultima_transicao = pd.to_datetime(ultima_transicao)
                 except Exception:
@@ -573,19 +573,19 @@ def overview(tipo, agente_logado):
             else:
                 ultima_transicao = None
 
-            # progresso (com base no created_at mais recente e prazo)
+            # 🚦 Calcula progresso e status com base no prazo e última transição
             perc, cor_barra, dias_rest, status_calc = calcular_progresso(
-                row.get("prazo_dias"),
+                safe_int(row.get("prazo_dias")),
                 ultima_transicao
             )
 
-            # status chip (mantendo padrão)
+            # 🟡 Chip de status
             status_chip = (
                 "🔴 Atrasado" if status_calc == "Atrasado"
                 else ("🟢 Dentro do prazo" if status_calc == "Dentro do prazo" else "⚪ Sem prazo")
             )
 
-            # label do prazo: D-? ou "Sem prazo"
+            # ⏱ Label de prazo
             if dias_rest is None:
                 prazo_label = "—"
             elif dias_rest < 0:
@@ -613,10 +613,10 @@ def overview(tipo, agente_logado):
                     </div>
                     <div style="margin-top:10px;">
                         <div class="prog-wrap">
-                            <div class="prog-fill" style="width:{perc:.0f}%; background:{cor_barra};"></div>
+                            <div class="prog-fill" style="width:{min(perc,100):.0f}%; background:{cor_barra};"></div>
                         </div>
                         <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:.8rem; color:#717c89">{perc:.0f}% do prazo</span>
+                            <span style="font-size:.8rem; color:#717c89">{min(perc,100):.0f}% do prazo</span>
                             <span class="chip">{status_chip}</span>
                         </div>
                     </div>
