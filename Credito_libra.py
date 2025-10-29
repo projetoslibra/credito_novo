@@ -338,27 +338,39 @@ def tabela_status_empresas(filtro_agente=None, data_ini=None, data_fim=None):
 
     sql = f"""
     SELECT
-        ac.empresa,
-        ac.agente,
-        ac.entrada,
-        ac.situacao,
-        COALESCE(ac.limite,0) AS limite,
-        ac.etapa_atual,
-        ac.responsavel_atual,
-        ac.data_ultima_movimentacao,
-        (SELECT prazo_dias
-           FROM log_workflow lw
-          WHERE lw.empresa = ac.empresa
-          ORDER BY lw.created_at DESC
-          LIMIT 1) AS prazo_dias,
-        (SELECT COUNT(*)
-           FROM pendencias_empresa p
-          WHERE p.empresa = ac.empresa
-            AND p.status='pendente') AS pendentes_restantes
+    ac.empresa,
+    ac.agente,
+    ac.entrada,
+    ac.situacao,
+    COALESCE(ac.limite,0) AS limite,
+    ac.etapa_atual,
+    ac.responsavel_atual,
+    ac.data_ultima_movimentacao,
+
+    -- 🔹 Campo novo essencial pra barrinha funcionar
+    (SELECT created_at
+       FROM log_workflow lw
+      WHERE lw.empresa = ac.empresa
+      ORDER BY lw.created_at DESC
+      LIMIT 1) AS ultima_transicao_em,
+
+    -- 🔹 Prazo mais recente do workflow
+    (SELECT prazo_dias
+       FROM log_workflow lw
+      WHERE lw.empresa = ac.empresa
+      ORDER BY lw.created_at DESC
+      LIMIT 1) AS prazo_dias,
+
+    -- 🔹 Quantidade de pendências abertas
+    (SELECT COUNT(*)
+       FROM pendencias_empresa p
+      WHERE p.empresa = ac.empresa
+        AND p.status='pendente') AS pendentes_restantes
+
     FROM analise_credito ac
     {where_sql}
     ORDER BY ac.entrada DESC, ac.empresa;
-    """
+     """
     df = run_query_df(sql, params)
     if not df.empty:
         try:
