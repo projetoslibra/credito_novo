@@ -273,15 +273,21 @@ def _norm_status(s):
     return "recebido" if s in ("recebido", "ok", "entregue", "sim", "true") else "pendente"
 
 def ensure_pendencias_empresa(empresa):
-    run_exec("""
+    """Garante que todos os documentos da DIM_PENDENCIAS existam na pendencias_empresa."""
+    try:
+        sql = f"""
         INSERT INTO pendencias_empresa (empresa, documento, status, data_ultima_atualizacao)
         SELECT %s, d.documento, 'pendente', NOW()
           FROM dim_pendencias d
          WHERE NOT EXISTS (
                SELECT 1 FROM pendencias_empresa pe
-                WHERE pe.empresa = %s AND pe.documento = d.documento
+                WHERE pe.empresa = %s
+                  AND pe.documento = d.documento
          );
-    """, (empresa, empresa))
+        """
+        run_exec(sql, [str(empresa).strip(), str(empresa).strip()])
+    except Exception as e:
+        st.error(f"Erro ao garantir pendências: {e}")
 
 def seed_empresa_if_missing(empresa, agente):
     run_exec("""
