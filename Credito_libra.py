@@ -820,7 +820,7 @@ def detalhada(tipo, agente):
                 st.error(f"Erro ao salvar no banco: {e}")
 
 # =========================================================
-# 🧭 WORKFLOW – nova aba dedicada
+# 🧭 WORKFLOW – com restrição por tipo de usuário
 # =========================================================
 def workflow(tipo, agente):
     st.markdown("## 🧭 Controle de Workflow")
@@ -831,8 +831,17 @@ def workflow(tipo, agente):
         st.session_state.tab = "Overview"
         st.rerun()
 
-    # Empresas
-    df_emp = run_query_df("SELECT empresa, etapa_atual, responsavel_atual FROM analise_credito ORDER BY empresa")
+    # 🔒 Restrição de acesso para comerciais
+    if tipo == "comercial":
+        df_emp = run_query_df(
+            "SELECT empresa, etapa_atual, responsavel_atual FROM analise_credito WHERE agente = %s ORDER BY empresa",
+            (agente,)
+        )
+    else:
+        df_emp = run_query_df(
+            "SELECT empresa, etapa_atual, responsavel_atual FROM analise_credito ORDER BY empresa"
+        )
+
     if df_emp.empty:
         st.info("Nenhuma empresa cadastrada ainda.")
         return
@@ -908,7 +917,7 @@ def workflow(tipo, agente):
     else:
         st.dataframe(df_log, use_container_width=True, height=300)
 
-        # Excluir
+        # Excluir (somente analista)
         if tipo == "analista":
             st.markdown("---")
             st.warning("⚠️ Esta ação é irreversível. Confirme antes de excluir a empresa.", icon="⚠️")
@@ -925,6 +934,7 @@ def workflow(tipo, agente):
                         st.error(f"Erro ao excluir empresa: {e}")
             else:
                 st.info("Marque a caixa de confirmação para habilitar o botão de exclusão.")
+
 
 # =========================================================
 # 📊 INTERFACE / ROTEAMENTO
