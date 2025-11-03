@@ -937,6 +937,113 @@ def workflow(tipo, agente):
 
 
 # =========================================================
+# 📅 CALENDÁRIO DE ANOTAÇÕES PESSOAIS
+# =========================================================
+import calendar
+
+def abrir_modal_nota(dia, nota_existente, usuario):
+    st.markdown("---")
+    st.markdown(f"### ✍️ Anotação — {dia.strftime('%d/%m/%Y')}")
+    nota_texto = ""
+    if not nota_existente.empty:
+        nota_texto = nota_existente.iloc[0]["nota"]
+
+    nova_nota = st.text_area("Digite sua anotação:", value=nota_texto, height=150)
+
+    col1, col2, col3 = st.columns([0.4, 0.3, 0.3])
+    with col1:
+        if st.button("💾 Salvar", use_container_width=True):
+            run_exec("""
+                INSERT INTO anotacoes_usuario (usuario, data, nota)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (usuario, data)
+                DO UPDATE SET nota = EXCLUDED.nota;
+            """, (usuario, dia, nova_nota))
+            st.toast("✅ Anotação salva com sucesso!", icon="💾")
+            st.rerun()
+    with col2:
+        if not nota_existente.empty:
+            if st.button("🗑️ Excluir", use_container_width=True):
+                run_exec("DELETE FROM anotacoes_usuario WHERE usuario=%s AND data=%s", (usuario, dia))
+                st.toast("🗑️ Anotação removida!", icon="⚠️")
+                st.rerun()
+    with col3:
+        if st.button("⬅️ Voltar", use_container_width=True):
+            st.rerun()
+
+
+def calendario(tipo, agente):
+    st.markdown("## 📅 Calendário de Anotações")
+    st.caption("Clique em um dia para registrar lembretes pessoais. Cada usuário vê apenas as próprias anotações.")
+
+    usuario = st.session_state.get("user")
+    hoje = date.today()
+
+    if "mes_atual" not in st.session_state:
+        st.session_state.mes_atual = hoje.month
+        st.session_state.ano_atual = hoje.year
+
+    # === Navegação entre meses ===
+    col1, col2, col3 = st.columns([0.15, 0.7, 0.15])
+    with col1:
+        if st.button("←", use_container_width=True):
+            if st.session_state.mes_atual == 1:
+                st.session_state.mes_atual = 12
+                st.session_state.ano_atual -= 1
+            else:
+                st.session_state.mes_atual -= 1
+    with col3:
+        if st.button("→", use_container_width=True):
+            if st.session_state.mes_atual == 12:
+                st.session_state.mes_atual = 1
+                st.session_state.ano_atual += 1
+            else:
+                st.session_state.mes_atual += 1
+    with col2:
+        mes_nome = datetime(st.session_state.ano_atual, st.session_state.mes_atual, 1).strftime('%B de %Y').capitalize()
+        st.markdown(f"<h3 style='text-align:center;color:{HONEYDEW};margin-bottom:10px'>{mes_nome}</h3>", unsafe_allow_html=True)
+
+    # === Busca anotações do usuário ===
+    df_notes = run_query_df(
+        "SELECT data, nota FROM anotacoes_usuario WHERE usuario = %s",
+        (usuario,)
+    )
+
+    # === Renderiza o calendário ===
+    cal = calendar.Calendar()
+    dias = list(cal.itermonthdates(st.session_state.ano_atual, st.session_state.mes_atual))
+    dias_mes = [d for d in dias if d.month == st.session_state.mes_atual]
+
+    n_cols = 7
+    rows = (len(dias_mes) + n_cols - 1) // n_cols
+    semana_labels = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+    # Cabeçalho dos dias da semana
+    cols = st.columns(n_cols)
+    for i, lbl in enumerate(semana_labels):
+        cols[i].markdown(f"<div style='text-align:center;color:{SLATE_GRAY};font-weight:600'>{lbl}</div>", unsafe_allow_html=True)
+
+    # Renderização de cada semana
+    for r in range(rows):
+        cols = st.columns(n_cols)
+        for i in range(n_cols):
+            idx = r * n_cols + i
+            if idx >= len(dias_mes): break
+            dia = dias_mes[idx]
+            nota_existente = df_notes[df_notes["data"] == pd.Timestamp(dia)]
+            marcado = not nota_existente.empty
+
+            bg = f"background:{HARVEST_GOLD}33;border:1px solid {HARVEST_GOLD};" if marcado else "border:1px solid #104052;"
+            txt_color = f"color:{HONEYDEW};opacity:0.9;"
+            content = f"<div style='{bg}border-radius:10px;padding:10px;text-align:center;cursor:pointer;{txt_color}'>{dia.day}</div>"
+
+            with cols[i]:
+                st.markdown(content, unsafe_allow_html=True)
+                if st.button(f"Dia {dia.day}", key=f"dia_{dia}", use_container_width=True):
+                    abrir_modal_nota(dia, nota_existente, usuario)
+
+
+# =========================================================
 # 📊 INTERFACE / ROTEAMENTO
 # =========================================================
 header()
@@ -949,7 +1056,7 @@ sidebar_content()
 if "tab" not in st.session_state:
     st.session_state.tab = "Overview"
 
-colA, colB, colC = st.columns(3)
+colA, colB, colC, colD = st.columns(4)
 with colA:
     if st.button("📊 Overview", use_container_width=True):
         st.session_state.tab = "Overview"
@@ -959,10 +1066,15 @@ with colB:
 with colC:
     if st.button("🧭 Workflow", use_container_width=True):
         st.session_state.tab = "Workflow"
+with colD:
+    if st.button("📅 Calendário", use_container_width=True):
+        st.session_state.tab = "Calendário"
 
 if st.session_state.tab == "Overview":
     overview(st.session_state.tipo, st.session_state.agente)
 elif st.session_state.tab == "Detalhada":
     detalhada(st.session_state.tipo, st.session_state.agente)
-else:
+elif st.session_state.tab == "Workflow":
     workflow(st.session_state.tipo, st.session_state.agente)
+elif st.session_state.tab == "Calendário":
+    calendario(st.session_state.tipo, st.session_state.agente)
