@@ -245,7 +245,7 @@ USERS = {
     "leonardo": {"senha": "Leonardo13", "tipo": "Diretor", "agente": None},
     "rafael":   {"senha": "Rafael13",   "tipo": "analista", "agente": None},
     "breno":    {"senha": "Breno13",    "tipo": "CEO", "agente": None},
-    "joao":   {"senha": "Joao13",   "tipo": "analista", "agente": None}
+    "joao santos":   {"senha": "Joao13",   "tipo": "analista", "agente": None}
 }
 
 def login_box():
