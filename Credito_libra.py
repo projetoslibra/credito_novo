@@ -235,16 +235,16 @@ USERS = {
     "marcelo":  {"senha": "Marcelo33",  "tipo": "comercial", "agente": "Marcelo"},
     "lilian":   {"senha": "Lilian33",   "tipo": "comercial", "agente": "Lilian"},
     "heverton": {"senha": "Heverton33", "tipo": "comercial", "agente": "Heverton"},
-    "moacir":   {"senha": "Moacir33",   "tipo": "comercial", "agente": "Moacir"},
+    "joao torezine": {"senha": "Joao33",   "tipo": "comercial", "agente": "Moacir"},
     "ellen":    {"senha": "Ellen33",    "tipo": "comercial", "agente": "Ellen"},
     "jose":     {"senha": "Jose33",     "tipo": "comercial", "agente": "Jose"},
     "sayonara": {"senha": "Sayonara33", "tipo": "comercial", "agente": "Sayonara"},
-    "joao":     {"senha": "Joao33",     "tipo": "comercial", "agente": "Joao"},
+    "joao batista": {"senha": "Joao33",     "tipo": "comercial", "agente": "Joao"},
     "andressa": {"senha": "Andressa33", "tipo": "comercial", "agente": "Andressa"},
     # === ANALISTAS / LIDERANÇA ===
     "leonardo": {"senha": "Leonardo13", "tipo": "Diretor", "agente": None},
-    "rafael":   {"senha": "Rafael13",   "tipo": "analista", "agente": None},
-    "breno":    {"senha": "Breno13",    "tipo": "CEO", "agente": None},
+    "moacir":   {"senha": "Moacir33",   "tipo": "Gerente", "agente": None},
+    "Ana":    {"senha": "Ana33",    "tipo": "Analista", "agente": None},
     "joao santos":   {"senha": "Joao13",   "tipo": "analista", "agente": None}
 }
 
