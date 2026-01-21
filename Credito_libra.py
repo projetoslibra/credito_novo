@@ -241,6 +241,7 @@ USERS = {
     "sayonara": {"senha": "Sayonara33", "tipo": "comercial", "agente": "Sayonara"},
     "joao batista": {"senha": "Joao33",     "tipo": "comercial", "agente": "Joao"},
     "andressa": {"senha": "Andressa33", "tipo": "comercial", "agente": "Andressa"},
+    "italo": {"senha": "Italo33", "tipo": "comercial", "agente": "Italo"},
     # === ANALISTAS / LIDERANÇA ===
     "leonardo": {"senha": "Leonardo13", "tipo": "Diretor", "agente": None},
     "moacir":   {"senha": "Moacir33",   "tipo": "Gerente", "agente": None},
